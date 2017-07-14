@@ -157,7 +157,9 @@ def loadparamsfromcsv(csvfilename, runs):
                     break
             log.debug("Searched over "+str(filteredfile.linecount)+" lines in file '"+csvfilename+"'.")
             if not len(missingRuns)==0:
-                log.error("Could not find an entry for the following run numbers in '"+csvfilename+"': "+', '.join(map(str, missingRuns)))
+                log.error("Could not find an entry for the following run numbers in '"+csvfilename+"': "+', '.join(map(str, missingRuns))+ "\nRemoving ...")
+                for run in missingRuns:
+                    runs.remove(run)
         finally:
             csvfile.close()
     except csv.Error, e:
@@ -183,13 +185,14 @@ def check_program(name):
         prog = os.path.join(dir, name)
         if os.path.exists(prog): return prog
 
-def runMarlin(filenamebase, jobtask, silent):
+def runMarlin(filenamebase, jobtask, silent, gdb):
     """ Runs Marlin and stores log of output """
     from sys import exit # use sys.exit instead of built-in exit (latter raises exception)
     log = logging.getLogger('jobsub.' + jobtask)
 
     # check for Marlin executable
     cmd = check_program("Marlin")
+    gdbcmd=cmd;
     if cmd:
         log.debug("Found Marlin executable: " + cmd)
     else:
@@ -224,83 +227,88 @@ def runMarlin(filenamebase, jobtask, silent):
         out.close()
     ON_POSIX = 'posix' in sys.builtin_module_names
     cmd = cmd+" "+filenamebase+".xml"
+    gdbcmd=gdbcmd+" "+filenamebase+".xml"
     rcode = None # the return code that will be set by a later subprocess method
     try:
         # run process
         log.info ("Now running Marlin on "+filenamebase+".xml")
         log.debug ("Executing: "+cmd)
-        p = Popen(shlex.split(cmd), stdout=PIPE, stderr=PIPE, bufsize=1, close_fds=ON_POSIX)
-        # setup output queues and threads
-        qout = Queue()
-        tout = Thread(target=enqueue_output, args=(p.stdout, qout))
-        qerr = Queue()
-        terr = Thread(target=enqueue_output, args=(p.stderr, qerr))
-        # threads die with the program
-        tout.daemon = True
-        terr.daemon = True 
-        tout.start()
-        terr.start()
-        # open log file
-        log_file = open(filenamebase+".log", "w")
-        # print timestamp to log file
-        log_file.write("---=== Analysis started on " + datetime.datetime.now().strftime("%A, %d. %B %Y %I:%M%p") + " ===---\n\n")
-        try:
-            while p.poll() is None:
-                # read line without blocking
-                try:  
-                    line = qout.get_nowait() # or q.get(timeout=.1)
-                    if not silent:
-                        if "WARNING" in line.strip():
-                            log.warning(line.strip())
-                        elif "ERROR" in line.strip():
-                            log.error(line.strip())
-                        else:
-                            log.info(line.strip())
-                    log_file.write(line)
-                except Empty:
-                    pass
-                
-                try:  
-                    line = qerr.get_nowait() # or q.get(timeout=.1)
-                    log.error(line.strip())
-                    log_file.write(line)                     
-                except Empty:
-                    sleep(0.005) # sleep for 5 ms to avoid excessive CPU load
-
-            # process done
-            tout.join() # finish stdout thread; wait for remaining buffer to be read
-            terr.join() # finish stderr thread
-            # process the remainder of the buffers now stored in our queues
-            while not qout.empty() or not qerr.empty():
-                # read line without blocking
-                try:  
-                    line = qout.get_nowait() # or q.get(timeout=.1)
-                    if not silent:
-                        if "WARNING" in line.strip():
-                            log.warning(line.strip())
-                        elif "ERROR" in line.strip():
-                            log.error(line.strip())
-                        else:
-                            log.info(line.strip())
-                    log_file.write(line)
-                except Empty:
-                    pass
-                
-                try:  
-                    line = qerr.get_nowait() # or q.get(timeout=.1)
-                    log.error(line.strip())
-                    log_file.write(line)                     
-                except Empty:
-                    pass
-        finally:
-            log_file.close()
-        rcode = p.returncode # get the return code
+        if(gdb==True):
+            log.info ("GDB command: gdb -ex=r --args "+gdbcmd)
+            raw_input("Press Enter to continue...")
+        else:
+        	p = Popen(shlex.split(cmd), stdout=PIPE, stderr=PIPE, bufsize=1, close_fds=ON_POSIX)
+        	# setup output queues and threads
+        	qout = Queue()
+        	tout = Thread(target=enqueue_output, args=(p.stdout, qout))
+        	qerr = Queue()
+        	terr = Thread(target=enqueue_output, args=(p.stderr, qerr))
+        	# threads die with the program
+        	tout.daemon = True
+        	terr.daemon = True 
+        	tout.start()
+        	terr.start()
+        	# open log file
+        	log_file = open(filenamebase+".log", "w")
+        	# print timestamp to log file
+        	log_file.write("---=== Analysis started on " + datetime.datetime.now().strftime("%A, %d. %B %Y %I:%M%p") + " ===---\n\n")
+        	try:
+        	    while p.poll() is None:
+        	        # read line without blocking
+        	        try:  
+        	            line = qout.get_nowait() # or q.get(timeout=.1)
+        	            if not silent:
+        	                if "WARNING" in line.strip():
+        	                    log.warning(line.strip())
+        	                elif "ERROR" in line.strip():
+        	                    log.error(line.strip())
+        	                else:
+        	                    log.info(line.strip())
+        	            log_file.write(line)
+        	        except Empty:
+        	            pass
+        	        
+        	        try:  
+        	            line = qerr.get_nowait() # or q.get(timeout=.1)
+        	            log.error(line.strip())
+        	            log_file.write(line)                     
+        	        except Empty:
+        	            sleep(0.005) # sleep for 5 ms to avoid excessive CPU load
+        	
+        	    # process done
+        	    tout.join() # finish stdout thread; wait for remaining buffer to be read
+        	    terr.join() # finish stderr thread
+        	    # process the remainder of the buffers now stored in our queues
+        	    while not qout.empty() or not qerr.empty():
+        	        # read line without blocking
+        	        try:  
+        	            line = qout.get_nowait() # or q.get(timeout=.1)
+        	            if not silent:
+        	                if "WARNING" in line.strip():
+        	                    log.warning(line.strip())
+        	                elif "ERROR" in line.strip():
+        	                    log.error(line.strip())
+        	                else:
+        	                    log.info(line.strip())
+        	            log_file.write(line)
+        	        except Empty:
+        	            pass
+        	        
+        	        try:  
+        	            line = qerr.get_nowait() # or q.get(timeout=.1)
+        	            log.error(line.strip())
+        	            log_file.write(line)                     
+        	        except Empty:
+        	            pass
+        	finally:
+        	    log_file.close()
+        	rcode = p.returncode # get the return code
     except OSError, e:
         log.critical("Problem with Marlin execution: Command '%s' resulted in error #%s, %s", cmd, e.errno, e.strerror)
         exit(1)
     return rcode
 
-def submitNAF(filenamebase, jobtask, qsubfile, runnr):
+def submitNAF(filenamebase, jobtask, qsubfile, runnr, qsub_outpath):
     """ Submits the Marlin job to NAF """
     import os
     from sys import exit # use sys.exit instead of built-in exit (latter raises exception)
@@ -322,9 +330,8 @@ def submitNAF(filenamebase, jobtask, qsubfile, runnr):
         li=line.strip()
         if not li.startswith("#"):
             qsub_options_str+=(str(line.rstrip())+' ')
-
-    cmd = cmd+" "+qsub_options_str+" -N \"Run"+runnr+"\" "
-    
+    #os.path.abspath(qsub_outpath)
+    cmd = cmd+" "+qsub_options_str+" -N \"Run"+runnr+"_"+jobtask+"\" "+" -o \""+qsub_outpath+"/Run"+runnr+"_"+jobtask+"_out.txt\" -e \""+qsub_outpath+"/Run"+runnr+"_"+jobtask+"_err.txt\" "
     # check for Marlin executable
     marlin = check_program("Marlin")
     if marlin:
@@ -333,13 +340,16 @@ def submitNAF(filenamebase, jobtask, qsubfile, runnr):
     else:
         log.error("Marlin executable not found in PATH!")
         exit(1)
-
-    cmd = cmd+" "+filenamebase+".xml"
+    filename = os.path.abspath(filenamebase+".xml")
+    cmd = cmd+" "+filename
     rcode = None # the return code that will be set by a later subprocess method
     try:
         # run process
         log.info ("Now submitting Marlin job: "+filenamebase+".xml to NAF")
-        log.debug ("Executing: "+cmd)
+        log.info ("Executing: "+cmd)
+        #log.debug ("Executing: "+cmd)
+        from subprocess import Popen, PIPE
+        
         os.popen(cmd)
     except OSError, e:
         log.critical("Problem with NAF submission: Command '%s' resulted in error #%s, %s", cmd, e.errno, e.strerror)
@@ -404,8 +414,6 @@ def zipLogs(path, filename):
         try:
             zf.write(os.path.join("./", filename)+".xml", compress_type=compression) # store in zip file
             zf.write(os.path.join("./", filename)+".log", compress_type=compression) # store in zip file
-            os.remove(os.path.join("./", filename)+".xml") # delete file
-            os.remove(os.path.join("./", filename)+".log") # delete file
             log.info("Logs written to "+os.path.join(path, filename)+".zip")
         finally:
             log.debug("Closing log archive file")
@@ -469,10 +477,12 @@ def main(argv=None):
     parser.add_argument("-s", "--silent", action="store_true", default=False, help="Suppress non-error (stdout) Marlin output to console")
     parser.add_argument("--dry-run", action="store_true", default=False, help="Write steering files but skip actual Marlin execution")
     parser.add_argument("--subdir", action="store_true", default=False, help="Execute every job in its own subdirectory instead of all in the base path")
+    parser.add_argument("--subdirloc", default=".", help="Subdirectory location for NAF jobsubmission ")
     parser.add_argument("--plain", action="store_true", default=False, help="Output written to stdout/stderr and log file in prefix-less format i.e. without time stamping")
     parser.add_argument("jobtask", help="Which task to submit (e.g. convert, hitmaker, align); task names are arbitrary and can be set up by the user; they determine e.g. the config section and default steering file names.")
     parser.add_argument("runs", help="The runs to be analyzed; can be a list of single runs and/or a range, e.g. 1056-1060.", nargs='*')
     parser.add_argument("-g", "--graphic", action="store_true", default=False)
+    parser.add_argument("--gdb", action="store_true", default=False, help="Generate temporary template files and exit before Marlin execution for gdb debugger")
     args = parser.parse_args(argv)
 
     #if desired, import the colorer module
@@ -630,6 +640,8 @@ def main(argv=None):
     log.info("Will now start processing the following runs: "+', '.join(map(str, runs)))
     # now loop over all runs
     for run in runs:
+        log.info("Will now start processing "+str(run))
+    for run in runs:
         if keepRunning['Sigint'] == 'seen':
             log.critical("Stopping to process remaining runs now")
             break  # if we received ctrl-c (SIGINT) we stop processing here
@@ -684,10 +696,13 @@ def main(argv=None):
         log.debug ("Writing steering file for run number "+runnr)
         # When  running in subdirectories for every job, create it:
         if args.subdir:
-            basedirectory = "run"+runnr
+            if (not os.path.exists(args.subdirloc+"/")) and args.subdirloc!='.':
+                log.info(str("Create dir:"+args.subdirloc+" For NAF Output"))
+                os.makedirs(args.subdirloc)
+            basedirectory = args.subdirloc+"/run"+runnr
             if not os.path.exists(basedirectory):
                 os.makedirs(basedirectory)
-
+                log.info(str("Create dir:"+basedirectory))
             # Decend into subdirectory:
             savedPath = os.getcwd()
             os.chdir(basedirectory)
@@ -705,7 +720,7 @@ def main(argv=None):
         if args.dry_run:
             log.info("Dry run: skipping Marlin execution. Steering file written to "+basefilename+'.xml')
         elif args.naf_file:
-            rcode = submitNAF(basefilename, args.jobtask, args.naf_file, runnr) # start NAF submission
+            rcode = submitNAF(basefilename, args.jobtask, args.naf_file, runnr, args.subdirloc) # start NAF submission
             if rcode == 0:
                 log.info("NAF job submitted")
             else:
@@ -717,12 +732,17 @@ def main(argv=None):
             else:
                 log.error("LXPLUS submission returned with error code "+str(rcode))
         else:
-            rcode = runMarlin(basefilename, args.jobtask, args.silent) # start Marlin execution
+            rcode = runMarlin(basefilename, args.jobtask, args.silent, args.gdb) # start Marlin execution
             if rcode == 0:
                 log.info("Marlin execution done")
             else:
                 log.error("Marlin returned with error code "+str(rcode))
-            zipLogs(parameters["logpath"], basefilename)
+            if(args.gdb==False):
+                zipLogs(parameters["logpath"], basefilename)
+                import os.path
+                os.remove(os.path.join("./", basefilename)+".xml") # delete file
+                os.remove(os.path.join("./", basefilename)+".log") # delete file
+
 
         # Return to old directory:
         if args.subdir:
