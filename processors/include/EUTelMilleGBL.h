@@ -455,6 +455,9 @@ namespace eutelescope {
 
     //! Event number
     int _iEvt;
+    unsigned int _nTri;
+    unsigned int _nDri;
+    unsigned int _nSix;
     
     //! counter for printed events (for debugging)
     int _printEventCounter;

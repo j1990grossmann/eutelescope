@@ -95,6 +95,7 @@
 #include <cmath>
 #include <iostream>
 #include <fstream>
+#include <iomanip>
 
 using namespace std;
 using namespace lcio;
@@ -342,9 +343,9 @@ EUTelMilleGBL::EUTelMilleGBL(): Processor("EUTelMilleGBL") {
   //registerOptionalParameter("OnlySingleTrackEvents","Use only events with one track candidate.",_onlySingleTrackEvents, static_cast <int> (0));
 
   registerOptionalParameter("AlignMode","Number of alignment constants used. Available mode are: "
-      "\nXYZShifts - shifts in X and Y"
-      "\nXYShiftsRotZ - shifts in X and Y and rotation around the Z axis,"
-      "\nXYZShiftsRotZ - shifts in X,Y and Z and rotation around the Z axis",
+      "\n XYShifts - shifts in X and Y"
+      "\n XYShiftsRotZ - shifts in X and Y and rotation around the Z axis,"
+      "\n XYZShiftsRotZ - shifts in X,Y and Z and rotation around the Z axis",
       _alignModeString, std::string("XYShiftsRotZ"));
 
   // not used anymore
@@ -618,6 +619,12 @@ void EUTelMilleGBL::init() {
   // set to zero the run and event counters
   _iRun = 0;
   _iEvt = 0;
+  _nTri = 0;
+  _nDri = 0;
+  _nSix = 0;
+
+  
+  
   _printEventCounter = 0;
 
   // Initialize number of excluded planes
@@ -1075,6 +1082,7 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 	      hts[2][ntri] = j2;
 	    }
 	    ntri++;
+            _nTri++;
 	  }//valid triplet
 
 	}//loop hits j1
@@ -1163,9 +1171,8 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 	      hts[5][ndri] = j5;
 	    }
 	    ndri++;
-
+            _nDri++;
 	  }//valid driplet
-
 	}//loop hits j4
       }//loop hits j5
     }//loop hits j3
@@ -1204,7 +1211,14 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 	if( abs(dx) < _sixCut ) sixdyHist->fill( dy*1e3 );
 
 	if( abs(dx) < _sixCut  && abs(dy) < _sixCut ) { // triplet-driplet match
-
+          _nSix++;
+          if(_iEvt < 100)
+          {
+              streamlog_out( MESSAGE2 ) <<setw(9);
+              streamlog_out( MESSAGE2 )<< left << "nTri "<<right<<_nTri;
+              streamlog_out( MESSAGE2 )<< left << "nDri "<<right<<_nDri;
+              streamlog_out( MESSAGE2 )<< left << "nSix "<<right<<_nSix<<endl;
+          }
 
 	  double kx = sxB[kB] - sxA[kA]; //kink
 	  double ky = syB[kB] - syA[kA];
@@ -1368,7 +1382,7 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 	    rx[ipl] = (_hitsArray[ipl][jhit].measuredX - xs); // resid hit-triplet, in micrometer ...
 	    ry[ipl] = (_hitsArray[ipl][jhit].measuredY - ys); // resid
 	  
-		Eigen::Vector2d meas;
+            Eigen::Vector2d meas;
 	    meas[0] = rx[ipl]; // fill meas vector for GBL
 	    meas[1] = ry[ipl];
 
