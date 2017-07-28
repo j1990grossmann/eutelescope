@@ -77,7 +77,7 @@ namespace eutelescope {
 
       inline double X() const { return _x; }
 
-      void SetPlaneID(int _PlaneID) { this->_PlaneID = _PlaneID; }
+      void SetPlaneID(int PlaneID) { this->_PlaneID = PlaneID; }
 
       int GetPlaneID() const { return _PlaneID; }
 
