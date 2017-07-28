@@ -116,79 +116,79 @@ void EUTelTripletGBLKinkEstimator::bookHistos()
   // telescope dx:
 
   dx01Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "Telescope/dx01", 100, -1, 1 );
+    createHistogram1D( "Telescope/dx01", 200, -2, 2 );
   dx01Histo->setTitle( "x1-x0;x_{1}-x_{0} [mm];hit pairs" );
 
   dy01Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "Telescope/dy01", 100, -1, 1 );
+    createHistogram1D( "Telescope/dy01", 200, -2, 2 );
   dy01Histo->setTitle( "y1-y0;y_{1}-y_{0} [mm];hit pairs" );
 
   du01Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "Telescope/du01", 100, -1, 1 );
+    createHistogram1D( "Telescope/du01", 200, -2, 2 );
   du01Histo->setTitle( "x1-x0, |dy| < 1;x_{1}-x_{0} [mm];hit pairs" );
 
   dx02Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "Telescope/dx02", 100, -1, 1 );
+    createHistogram1D( "Telescope/dx02", 200, -2, 2 );
   dx02Histo->setTitle( "x2-x0;x_{2}-x_{0} [mm];hit pairs" );
 
   dx03Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "Telescope/dx03", 100, -1, 1 );
+    createHistogram1D( "Telescope/dx03", 200, -2, 2 );
   dx03Histo->setTitle( "x3-x0;x_{3}-x_{0} [mm];hit pairs" );
 
   dx04Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "Telescope/dx04", 100, -1, 1 );
+    createHistogram1D( "Telescope/dx04", 200, -2, 2 );
   dx04Histo->setTitle( "x4-x0;x_{4}-x_{0} [mm];hit pairs" );
 
   dx05Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "Telescope/dx05", 100, -1, 1 );
+    createHistogram1D( "Telescope/dx05", 200, -2, 2 );
   dx05Histo->setTitle( "x5-x0;x_{5}-x_{0} [mm];hit pairs" );
 
   dx12Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "Telescope/dx12", 100, -1, 1 );
+    createHistogram1D( "Telescope/dx12", 200, -2, 2 );
   dx12Histo->setTitle( "x2-x1;x_{2}-x_{1} [mm];hit pairs" );
 
   dy12Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "Telescope/dy12", 100, -1, 1 );
+    createHistogram1D( "Telescope/dy12", 200, -2, 2 );
   dy12Histo->setTitle( "y2-y1;y_{2}-y_{1} [mm];hit pairs" );
 
   du12Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "Telescope/du12", 100, -1, 1 );
+    createHistogram1D( "Telescope/du12", 200, -2, 2 );
   du12Histo->setTitle( "x2-x1, |dy| < 1;x_{2}-x_{1} [mm];hit pairs" );
 
   dx23Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "Telescope/dx23", 100, -1, 1 );
+    createHistogram1D( "Telescope/dx23", 200, -2, 2 );
   dx23Histo->setTitle( "x3-x2;x_{3}-x_{2} [mm];hit pairs" );
 
   dy23Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "Telescope/dy23", 100, -1, 1 );
+    createHistogram1D( "Telescope/dy23", 200, -2, 2 );
   dy23Histo->setTitle( "y3-y2;y_{3}-y_{2} [mm];hit pairs" );
 
   du23Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "Telescope/du23", 100, -1, 1 );
+    createHistogram1D( "Telescope/du23", 200, -2, 2 );
   du23Histo->setTitle( "x3-x2, |dy| < 1;x_{3}-x_{2} [mm];hit pairs" );
 
   dx34Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "Telescope/dx34", 100, -1, 1 );
+    createHistogram1D( "Telescope/dx34", 200, -2, 2 );
   dx34Histo->setTitle( "x4-x3;x_{4}-x_{3} [mm];hit pairs" );
 
   dy34Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "Telescope/dy34", 100, -1, 1 );
+    createHistogram1D( "Telescope/dy34", 200, -2, 2 );
   dy34Histo->setTitle( "y4-y3;y_{4}-y_{3} [mm];hit pairs" );
 
   du34Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "Telescope/du34", 100, -1, 1 );
+    createHistogram1D( "Telescope/du34", 200, -2, 2 );
   du34Histo->setTitle( "x4-x3, |dy| < 1;x_{4}-x_{3} [mm];hit pairs" );
 
   dx45Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "Telescope/dx45", 100, -1, 1 );
+    createHistogram1D( "Telescope/dx45", 200, -2, 2 );
   dx45Histo->setTitle( "x5-x4;x_{5}-x_{4} [mm];hit pairs" );
 
   dy45Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "Telescope/dy45", 100, -1, 1 );
+    createHistogram1D( "Telescope/dy45", 200, -2, 2 );
   dy45Histo->setTitle( "y5-y4;y_{5}-y_{4} [mm];hit pairs" );
 
   du45Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "Telescope/du45", 100, -1, 1 );
+    createHistogram1D( "Telescope/du45", 200, -2, 2 );
   du45Histo->setTitle( "x5-x4, |dy| < 1;x_{5}-x_{4} [mm];hit pairs" );
 
   // triplets:
@@ -211,11 +211,11 @@ void EUTelTripletGBLKinkEstimator::bookHistos()
   tridyHisto->setTitle( "triplet dy;y_{1}-y_{m} [#mum];telescope triplets" );
 
   tridx1Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "Upstream/tridx1", 100, -1, 1 );
+    createHistogram1D( "Upstream/tridx1", 200, -2, 2 );
   tridx1Histo->setTitle( "triplet dx;x_{1}-x_{t} [mm];telescope triplets" );
 
   tridy1Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "Upstream/tridy1", 100, -1, 1 );
+    createHistogram1D( "Upstream/tridy1", 200, -2, 2 );
   tridy1Histo->setTitle( "triplet dy;y_{1}-y_{t} [mm];telescope triplets" );
 
   tridxvsx = AIDAProcessor::histogramFactory(this)->
@@ -251,11 +251,11 @@ void EUTelTripletGBLKinkEstimator::bookHistos()
   tridyvsty->setTitle( "triplet y resid vs ty;t_{y} [mrad];triplet <#Deltay> [#mum]" );
 
   tridx3Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "Upstream/tridx3", 100, -1, 1 );
+    createHistogram1D( "Upstream/tridx3", 200, -2, 2 );
   tridx3Histo->setTitle( "triplet dx;x_{3}-x_{t} [mm];telescope triplets" );
 
   tridy3Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "Upstream/tridy3", 100, -1, 1 );
+    createHistogram1D( "Upstream/tridy3", 200, -2, 2 );
   tridy3Histo->setTitle( "triplet dy;y_{3}-y_{t} [mm];telescope triplets" );
 
   tridx3bHisto = AIDAProcessor::histogramFactory(this)->
@@ -528,7 +528,7 @@ void EUTelTripletGBLKinkEstimator::bookHistos()
   derxturnHisto->setTitle( "ddx/dturn;ddx/dturn [mm/rad];align hits" );
 
   deryturnHisto = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "GBL/deryturn", 100, -1, 1 );
+    createHistogram1D( "GBL/deryturn", 200, -2, 2 );
   deryturnHisto->setTitle( "ddy/dturn;ddy/dturn [mm/rad];align hits" );
 
   selxHisto = AIDAProcessor::histogramFactory(this)->
@@ -1177,7 +1177,7 @@ void EUTelTripletGBLKinkEstimator::bookHistos()
   gblkx5Histo->setTitle( "GBL kink angle at plane 5;plane 5 kink [mrad];tracks" );
 
   gblkx6Histo = AIDAProcessor::histogramFactory(this)->
-    createHistogram1D( "GBL/gblkx6", 100, -1, 1 );
+    createHistogram1D( "GBL/gblkx6", 200, -2, 2 );
   gblkx6Histo->setTitle( "GBL kink angle at plane 6;plane 6 kink [mrad];tracks" );
 
 

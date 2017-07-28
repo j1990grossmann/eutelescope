@@ -162,13 +162,18 @@ namespace eutelescope {
     int _nEvt;
     int _nTelPlanes;
     int _ngbl;
+    int _ntrip;
+    int _ndrip;
     int _dut_plane;
+    int _ndebug;
     double _eff_radius;
     double _kappa;
     double _targetthick;
+    double _DUTz;
     
     // Cuts for matching:
     double _track_match_cut;
+    double _track_iso_cut;
     double _slope_cut;
     double _triplet_res_cut;
     double _probchi2_cut;

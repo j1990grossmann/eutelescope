@@ -699,7 +699,7 @@ void EUTelTripletGBL::processEvent( LCEvent * event ) {
 
   // Match the Telescope Upstream and Downstream Arm triplets to get tracks:
   std::vector<EUTelTripletGBLUtility::track> telescope_tracks;
-  gblutil.MatchTriplets(upstream_triplets,downstream_triplets, DUTz, _track_match_cut, telescope_tracks);
+  gblutil.MatchTriplets(upstream_triplets,downstream_triplets, DUTz, _track_match_cut, _track_match_cut*2.0001,telescope_tracks);
 
   //delete downstream_triplets;
   //delete upstream_triplets;

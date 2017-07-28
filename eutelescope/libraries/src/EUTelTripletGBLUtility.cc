@@ -69,11 +69,11 @@ void EUTelTripletGBLUtility::bookHistos(){
   sixkyHisto->setTitle( "kink y;kink y [mrad];triplet-driplet pairs" );
 
   sixdxHisto = AIDAProcessor::histogramFactory(parent)->
-    createHistogram1D( "GBLUtility/sixdx", 100, -1, 1 );
+    createHistogram1D( "GBLUtility/sixdx", 1000, -10, 10 );
   sixdxHisto->setTitle( "six match x;match x [mm];triplet-driplet pairs" );
 
   sixdyHisto = AIDAProcessor::histogramFactory(parent)->
-    createHistogram1D( "GBLUtility/sixdy", 100, -1, 1 );
+    createHistogram1D( "GBLUtility/sixdy", 1000, -10, 10 );
   sixdyHisto->setTitle( "six match y;match y [mm];triplet-driplet pairs" );
 
   sixdxcHisto = AIDAProcessor::histogramFactory(parent)->
@@ -144,7 +144,7 @@ void EUTelTripletGBLUtility::bookHistos(){
 
 }
 
-void EUTelTripletGBLUtility::MatchTriplets(std::vector<triplet> &up, std::vector<EUTelTripletGBLUtility::triplet> &down, double z_match, double trip_matching_cut, std::vector<EUTelTripletGBLUtility::track> &tracks) {
+void EUTelTripletGBLUtility::MatchTriplets(std::vector<triplet> &up, std::vector<EUTelTripletGBLUtility::triplet> &down, double z_match, double trip_matching_cut, double iso_matching_cut, std::vector<EUTelTripletGBLUtility::track> &tracks) {
 
   // Cut on the matching of two triplets [mm]
   //double intersect_residual_cut = 0.1;
@@ -156,7 +156,7 @@ void EUTelTripletGBLUtility::MatchTriplets(std::vector<triplet> &up, std::vector
     double yA = (*trip).gety_at(z_match);
 
     // check if trip is isolated. use at least double the trip_machting_cut for isolation in order to avoid double matching
-    bool IsolatedTrip = IsTripletIsolated(trip, up, z_match, trip_matching_cut*2.0001);
+    bool IsolatedTrip = IsTripletIsolated(trip, up, z_match, iso_matching_cut);
     streamlog_out(DEBUG4) << "  Is triplet isolated? " << IsolatedTrip << std::endl;
 
     for( std::vector<EUTelTripletGBLUtility::triplet>::iterator drip = down.begin(); drip != down.end(); drip++ ){
@@ -166,7 +166,7 @@ void EUTelTripletGBLUtility::MatchTriplets(std::vector<triplet> &up, std::vector
       double yB = (*drip).gety_at(z_match);
 
       // check if drip is isolated
-      bool IsolatedDrip = IsTripletIsolated(drip, down, z_match, trip_matching_cut*2.0001);
+      bool IsolatedDrip = IsTripletIsolated(drip, down, z_match, iso_matching_cut);
       streamlog_out(DEBUG4) << "  Is driplet isolated? " << IsolatedDrip << std::endl;
 
 
@@ -193,6 +193,7 @@ void EUTelTripletGBLUtility::MatchTriplets(std::vector<triplet> &up, std::vector
       // match driplet and triplet:
       streamlog_out(DEBUG4) << "  Distance for matching x: " << fabs(dx)<< std::endl;
       streamlog_out(DEBUG4) << "  Distance for matching y: " << fabs(dy)<< std::endl;
+      
       if( fabs(dx) > trip_matching_cut) continue;
       if( fabs(dy) > trip_matching_cut) continue;
       streamlog_out(DEBUG4) << "  Survived matching " << std::endl;

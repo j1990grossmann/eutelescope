@@ -228,7 +228,7 @@ namespace eutelescope {
       void FindTriplets(std::vector<EUTelTripletGBLUtility::hit> &hits, unsigned int plane0, unsigned int plane1, unsigned int plane2, double trip_res_cut, double trip_slope_cut, std::vector<EUTelTripletGBLUtility::triplet> &trip);
 
       //! Match the upstream and downstream triplets to tracks
-      void MatchTriplets(std::vector<EUTelTripletGBLUtility::triplet> &up, std::vector<EUTelTripletGBLUtility::triplet> &down, double z_match, double trip_matching_cut, std::vector<EUTelTripletGBLUtility::track> &track);
+      void MatchTriplets(std::vector<EUTelTripletGBLUtility::triplet> &up, std::vector<EUTelTripletGBLUtility::triplet> &down, double z_match, double trip_matching_cut, double iso_matching_cut, std::vector<EUTelTripletGBLUtility::track> &track);
 
       //! Check isolation of triplet within vector of triplets
       bool IsTripletIsolated(std::vector<EUTelTripletGBLUtility::triplet>::iterator it, std::vector<EUTelTripletGBLUtility::triplet> &trip, double z_match, double isolation = 0.3);
