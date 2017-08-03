@@ -1087,7 +1087,7 @@ void EUTelClusterFilter::processEvent(LCEvent *event) {
         isAccepted &= isAboveNxNMinSNR(cluster);
         isAccepted &= isAboveMinSeedCharge(cluster);
         isAccepted &= isAboveMinSeedSNR(cluster);
-        isAccepted &= isBelowMaxClusterNoise(cluster);
+//        isAccepted &= isBelowMaxClusterNoise(cluster);
       }
       isAccepted &= hasQuality(cluster);
       isAccepted &= isInsideROI(cluster);
