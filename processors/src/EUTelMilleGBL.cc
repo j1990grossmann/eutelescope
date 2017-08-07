@@ -755,18 +755,18 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 
   if( _iEvt % 1000 == 0 ) {
     streamlog_out( MESSAGE2 ) << "Processing event "
-      << setw(6) << setiosflags(ios::right)
+      << setw(9) << setiosflags(ios::right)
       << event->getEventNumber() << " in run "
-      << setw(6) << setiosflags(ios::right)
+      << setw(9) << setiosflags(ios::right)
       << event->getRunNumber()
       << ", currently having "
-      << setw(6) << setiosflags(ios::right)
-      << _nMilleTracks << " tracks "
-      << setw(6) << setiosflags(ios::right)
+      << setw(9) << setiosflags(ios::right)
+      << _nMilleTracks << " tracks accepted"
+      << setw(9) << setiosflags(ios::right)
       << _nTri<< " triplets "
-      << setw(6) << setiosflags(ios::right)
+      << setw(9) << setiosflags(ios::right)
       << _nDri<< " driplets "
-      << setw(6) << setiosflags(ios::right)
+      << setw(9) << setiosflags(ios::right)
       << _nSix<< " matched tracks"
       << endl;
   }
@@ -1096,7 +1096,7 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
     ntriHist->fill( ntri );
 
     if( ntri >= 99 ) {
-      streamlog_out( MESSAGE2 ) << "Maximum number of triplet track candidates reached. Maybe further tracks were skipped" << endl;
+      streamlog_out( MESSAGE2 ) << "Maximum number of triplet track candidates reached in event "<<_iEvt<<". Maybe further tracks were skipped" << endl;
     }
 
     // driplets 3-4-5:
@@ -1184,7 +1184,7 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
     ndriHist->fill( ndri );
 
     if( ndri >= 99 ) {
-      streamlog_out( MESSAGE2 ) << "Maximum number of driplet track candidates reached. Maybe further tracks were skipped" << endl;
+      streamlog_out( MESSAGE2 ) << "Maximum number of triplet track candidates reached in event "<<_iEvt<<". Maybe further tracks were skipped" << endl;
     }
 
     // match triplets A to driplets B:
@@ -1216,7 +1216,7 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 
 	if( abs(dx) < _sixCut  && abs(dy) < _sixCut ) { // triplet-driplet match
           _nSix++;
-          continue;
+//           continue;
 //           if(_iEvt < 100)
 //           {
 //               streamlog_out( MESSAGE2 ) <<setw(9);
@@ -1250,7 +1250,7 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 	  double resy = -1.; // [mm] telescope initial resolution
 
 	  double distplane = _planePosition[1] - _planePosition[0];
-          if(_iEvt < 5) streamlog_out( MESSAGE2 ) << "distplane = " << distplane << endl;
+          if(_iEvt < 5) streamlog_out( DEBUG4 ) << "distplane = " << distplane << endl;
 
 	  if( distplane > 100. ) {
 	    resx = 100. - p*8;
