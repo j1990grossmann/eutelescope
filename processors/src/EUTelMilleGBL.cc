@@ -622,9 +622,6 @@ void EUTelMilleGBL::init() {
   _nTri = 0;
   _nDri = 0;
   _nSix = 0;
-
-  
-  
   _printEventCounter = 0;
 
   // Initialize number of excluded planes
@@ -911,7 +908,7 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 	    _hitsArray[indexconverter[help]].push_back( hitsInPlane );
 
 	  // ADDITIONAL PRINTOUTS   
-// 	  printf("plane:%3d hit:%3d %8.3f %8.3f %8.3f \n", help, indexconverter[help], hitsInPlane.measuredX,hitsInPlane.measuredY,hitsInPlane.measuredZ);
+          // printf("plane:%3d hit:%3d %8.3f %8.3f %8.3f \n", help, indexconverter[help], hitsInPlane.measuredX,hitsInPlane.measuredY,hitsInPlane.measuredZ);
 	  _hitsArray[help].push_back(hitsInPlane);
 	  _telescopeResolX[help] = resolX;
 	  _telescopeResolY[help] = resolY;
@@ -927,12 +924,12 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 
     }//loop over hits
 
-  if(_iEvt < 100){
-      streamlog_out( MESSAGE2 ) << "hits per plane: ";
-      for( size_t i = 0; i < _hitsArray.size(); i++ )
-          streamlog_out( MESSAGE2 ) << _hitsArray[i].size() << "  ";
-      streamlog_out( MESSAGE2 ) << endl;
-  }
+  /*
+     streamlog_out( MESSAGE2 ) << "hits per plane: ";
+     for( size_t i = 0; i < _hitsArray.size(); i++ )
+     streamlog_out( MESSAGE2 ) << _hitsArray[i].size() << "  ";
+     streamlog_out( MESSAGE2 ) << endl;
+     */
   // mode 1 or 3: tracks are read in
 
   // DP: correlate telescope hits from different planes
@@ -1099,7 +1096,7 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
     ntriHist->fill( ntri );
 
     if( ntri >= 99 ) {
-      streamlog_out( MESSAGE2 ) << "Maximum number of tri track candidates reached. Maybe further tracks were skipped" << endl;
+      streamlog_out( MESSAGE2 ) << "Maximum number of triplet track candidates reached. Maybe further tracks were skipped" << endl;
     }
 
     // driplets 3-4-5:
@@ -1187,7 +1184,7 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
     ndriHist->fill( ndri );
 
     if( ndri >= 99 ) {
-      streamlog_out( MESSAGE2 ) << "Maximum number of dri track candidates reached. Maybe further tracks were skipped" << endl;
+      streamlog_out( MESSAGE2 ) << "Maximum number of driplet track candidates reached. Maybe further tracks were skipped" << endl;
     }
 
     // match triplets A to driplets B:
@@ -1253,10 +1250,8 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 	  double resy = -1.; // [mm] telescope initial resolution
 
 	  double distplane = _planePosition[1] - _planePosition[0];
-//           if(_iEvt < 5)
-//           {
-//               streamlog_out( MESSAGE2 ) << "distplane = " << distplane << endl;
-//           }
+          if(_iEvt < 5) streamlog_out( MESSAGE2 ) << "distplane = " << distplane << endl;
+
 	  if( distplane > 100. ) {
 	    resx = 100. - p*8;
 	    resy = resx; 
@@ -1609,85 +1604,85 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 	  Eigen::VectorXd aDownWeights(ndim);
 
 	  int ipos = ilab[0];
-// 	  traj.getResults( ipos, aCorrection, aCovariance );
-//           traj.getMeasResults( ipos, ndata, aResiduals, aMeasErrors, aResErrors, aDownWeights );
-// 
-// 	  //track = q/p, x', y', x, y
-// 	  //        0,   1,  2,  3, 4
-// 
-// 	  gblax0Hist->fill( aCorrection[1]*1E3 ); // angle x [mrad]
-// 	  gbldx0Hist->fill( aCorrection[3]*1e3 ); // shift x [um]
-// 	  gblrx0Hist->fill( (aResiduals[0])*1e3 ); // residual x [um]
-// 	  gblry0Hist->fill( (aResiduals[1])*1e3 ); // residual y [um]
-// 	  gblpx0Hist->fill( (aResiduals[0] / aResErrors[0]) );
-// 	  gblpy0Hist->fill( (aResiduals[1] / aResErrors[1]) ); 
-// 	  ax[k] = aCorrection[1]; // angle correction at plane, for kinks
-// 	  ay[k] = aCorrection[2]; // angle correction at plane, for kinks
-// 	  k++;
-// 
-// 	  ipos = ilab[1];
-// 	  traj.getResults( ipos, aCorrection, aCovariance );
-// 	  gblax1Hist->fill( aCorrection[1]*1E3 ); // angle x [mrad]
-// 	  gbldx1Hist->fill( aCorrection[3]*1e3 ); // shift x [um]
-// 	  gblrx1Hist->fill( (rx[1] - aCorrection[3])*1e3 ); // residual x [um]
-// 	  gblry1Hist->fill( (ry[1] - aCorrection[4])*1e3 ); // residual y [um]
-// 	  ax[k] = aCorrection[1]; // angle correction at plane, for kinks
-// 	  ay[k] = aCorrection[2]; // angle correction at plane, for kinks
-// 	  k++;
-// 
-// 	  ipos = ilab[2];
-// 	  traj.getResults( ipos, aCorrection, aCovariance );
-// 	  gblax2Hist->fill( aCorrection[1]*1E3 ); // angle x [mrad]
-// 	  gbldx2Hist->fill( aCorrection[3]*1e3 ); // shift x [um]
-// 	  gblrx2Hist->fill( (rx[2] - aCorrection[3])*1e3 ); // residual x [um]
-// 	  gblry2Hist->fill( (ry[2] - aCorrection[4])*1e3 ); // residual y [um]
-// 	  ax[k] = aCorrection[1]; // angle correction at plane, for kinks
-// 	  ay[k] = aCorrection[2]; // angle correction at plane, for kinks
-// 	  k++;
-// 
-// 	  ipos = ilab[3];
-// 	  traj.getResults( ipos, aCorrection, aCovariance );
-// 	  gblax3Hist->fill( aCorrection[1]*1E3 ); // angle x [mrad]
-// 	  gbldx3Hist->fill( aCorrection[3]*1e3 ); // shift x [um]
-// 	  gblrx3Hist->fill( (rx[3] - aCorrection[3]*1e3) ); // residual x [um]
-// 	  gblry3Hist->fill( (ry[3] - aCorrection[4])*1e3 ); // residual y [um]
-// 	  ax[k] = aCorrection[1]; // angle correction at plane, for kinks
-// 	  ay[k] = aCorrection[2]; // angle correction at plane, for kinks
-// 	  k++;
-// 
-// 	  ipos = ilab[4];
-// 	  traj.getResults( ipos, aCorrection, aCovariance );
-// 	  gblax4Hist->fill( aCorrection[1]*1E3 ); // angle x [mrad]
-// 	  gbldx4Hist->fill( aCorrection[3]*1e3 ); // shift x [um]
-// 	  gblrx4Hist->fill( (rx[4] - aCorrection[3])*1e3 ); // residual x [um]
-// 	  gblry4Hist->fill( (ry[4] - aCorrection[4])*1e3 ); // residual y [um]
-// 	  ax[k] = aCorrection[1]; // angle correction at plane, for kinks
-// 	  ay[k] = aCorrection[2]; // angle correction at plane, for kinks
-// 	  k++;
-// 
-// 	  ipos = ilab[5];
-// 	  traj.getResults( ipos, aCorrection, aCovariance );
-// 	  gblax5Hist->fill( aCorrection[1]*1E3 ); // angle x [mrad]
-// 	  gbldx5Hist->fill( aCorrection[3]*1e3 ); // shift x [um]
-// 	  gblrx5Hist->fill( (rx[5] - aCorrection[3])*1e3 ); // residual x [um]
-// 	  gblry5Hist->fill( (ry[5] - aCorrection[4])*1e3 ); // residual y [um]
-// 	  ax[k] = aCorrection[1]; // angle correction at plane, for kinks
-// 	  ay[k] = aCorrection[2]; // angle correction at plane, for kinks
-// 	  k++;
-// 
-// 	  // kinks: 1,2 = tele, 3 = DUT, 4,5 = tele
-// 
-// 	  gblkx1Hist->fill( (ax[1] - ax[0])*1E3 ); // kink at 1 [mrad]
-// 	  gblkx2Hist->fill( (ax[2] - ax[1])*1E3 ); // kink at 2 [mrad]
-// 	  gblkx3Hist->fill( (ax[3] - ax[2])*1E3 ); // kink at 3 [mrad]
-// 	  gblkx4Hist->fill( (ax[4] - ax[3])*1E3 ); // kink at 4 [mrad]
-// 	  gblkx5Hist->fill( (ax[5] - ax[4])*1E3 ); // kink at 5 [mrad]
+          traj.getResults( ipos, aCorrection, aCovariance );
+          traj.getMeasResults( ipos, ndata, aResiduals, aMeasErrors, aResErrors, aDownWeights );
+
+          //track = q/p, x', y', x, y
+          //        0,   1,  2,  3, 4
+
+          gblax0Hist->fill( aCorrection[1]*1E3 ); // angle x [mrad]
+          gbldx0Hist->fill( aCorrection[3]*1e3 ); // shift x [um]
+          gblrx0Hist->fill( (aResiduals[0])*1e3 ); // residual x [um]
+          gblry0Hist->fill( (aResiduals[1])*1e3 ); // residual y [um]
+          gblpx0Hist->fill( (aResiduals[0] / aResErrors[0]) );
+          gblpy0Hist->fill( (aResiduals[1] / aResErrors[1]) ); 
+          ax[k] = aCorrection[1]; // angle correction at plane, for kinks
+          ay[k] = aCorrection[2]; // angle correction at plane, for kinks
+          k++;
+
+          ipos = ilab[1];
+          traj.getResults( ipos, aCorrection, aCovariance );
+          gblax1Hist->fill( aCorrection[1]*1E3 ); // angle x [mrad]
+          gbldx1Hist->fill( aCorrection[3]*1e3 ); // shift x [um]
+          gblrx1Hist->fill( (rx[1] - aCorrection[3])*1e3 ); // residual x [um]
+          gblry1Hist->fill( (ry[1] - aCorrection[4])*1e3 ); // residual y [um]
+          ax[k] = aCorrection[1]; // angle correction at plane, for kinks
+          ay[k] = aCorrection[2]; // angle correction at plane, for kinks
+          k++;
+
+          ipos = ilab[2];
+          traj.getResults( ipos, aCorrection, aCovariance );
+          gblax2Hist->fill( aCorrection[1]*1E3 ); // angle x [mrad]
+          gbldx2Hist->fill( aCorrection[3]*1e3 ); // shift x [um]
+          gblrx2Hist->fill( (rx[2] - aCorrection[3])*1e3 ); // residual x [um]
+          gblry2Hist->fill( (ry[2] - aCorrection[4])*1e3 ); // residual y [um]
+          ax[k] = aCorrection[1]; // angle correction at plane, for kinks
+          ay[k] = aCorrection[2]; // angle correction at plane, for kinks
+          k++;
+
+          ipos = ilab[3];
+          traj.getResults( ipos, aCorrection, aCovariance );
+          gblax3Hist->fill( aCorrection[1]*1E3 ); // angle x [mrad]
+          gbldx3Hist->fill( aCorrection[3]*1e3 ); // shift x [um]
+          gblrx3Hist->fill( (rx[3] - aCorrection[3]*1e3) ); // residual x [um]
+          gblry3Hist->fill( (ry[3] - aCorrection[4])*1e3 ); // residual y [um]
+          ax[k] = aCorrection[1]; // angle correction at plane, for kinks
+          ay[k] = aCorrection[2]; // angle correction at plane, for kinks
+          k++;
+
+          ipos = ilab[4];
+          traj.getResults( ipos, aCorrection, aCovariance );
+          gblax4Hist->fill( aCorrection[1]*1E3 ); // angle x [mrad]
+          gbldx4Hist->fill( aCorrection[3]*1e3 ); // shift x [um]
+          gblrx4Hist->fill( (rx[4] - aCorrection[3])*1e3 ); // residual x [um]
+          gblry4Hist->fill( (ry[4] - aCorrection[4])*1e3 ); // residual y [um]
+          ax[k] = aCorrection[1]; // angle correction at plane, for kinks
+          ay[k] = aCorrection[2]; // angle correction at plane, for kinks
+          k++;
+
+          ipos = ilab[5];
+          traj.getResults( ipos, aCorrection, aCovariance );
+          gblax5Hist->fill( aCorrection[1]*1E3 ); // angle x [mrad]
+          gbldx5Hist->fill( aCorrection[3]*1e3 ); // shift x [um]
+          gblrx5Hist->fill( (rx[5] - aCorrection[3])*1e3 ); // residual x [um]
+          gblry5Hist->fill( (ry[5] - aCorrection[4])*1e3 ); // residual y [um]
+          ax[k] = aCorrection[1]; // angle correction at plane, for kinks
+          ay[k] = aCorrection[2]; // angle correction at plane, for kinks
+          k++;
+
+          // kinks: 1,2 = tele, 3 = DUT, 4,5 = tele
+
+          gblkx1Hist->fill( (ax[1] - ax[0])*1E3 ); // kink at 1 [mrad]
+          gblkx2Hist->fill( (ax[2] - ax[1])*1E3 ); // kink at 2 [mrad]
+          gblkx3Hist->fill( (ax[3] - ax[2])*1E3 ); // kink at 3 [mrad]
+          gblkx4Hist->fill( (ax[4] - ax[3])*1E3 ); // kink at 4 [mrad]
+          gblkx5Hist->fill( (ax[5] - ax[4])*1E3 ); // kink at 5 [mrad]
 
 	  // do not pass very bad tracks to mille
-// 	  if(probchi > 0.001) {
-// 	    traj.milleOut( *milleGBL );
-// 	    nm++;
-// 	  }
+	  if(probchi > 0.001) {
+	    traj.milleOut( *milleGBL );
+	    nm++;
+	  }
 
 	} // match
 
