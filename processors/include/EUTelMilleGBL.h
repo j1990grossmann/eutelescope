@@ -390,6 +390,7 @@ namespace eutelescope {
     double _driCut;
     double _sixCut;
     double _slopeCut;
+    double _chi2Cut;
     int _IsFirstAlignStep;
 
     double _kappa;

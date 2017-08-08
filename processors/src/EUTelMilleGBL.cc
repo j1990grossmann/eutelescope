@@ -362,6 +362,7 @@ EUTelMilleGBL::EUTelMilleGBL(): Processor("EUTelMilleGBL") {
   registerOptionalParameter( "driCut", "Downstream triplet residual cut [um]", _driCut, 0.40 );
   registerOptionalParameter( "sixCut", "Upstream-Downstream Track matching cut [um]", _sixCut, 0.60 );
   registerOptionalParameter( "slopeCut", "t(d)riplet slope cut [radian]", _slopeCut, 0.01 );
+  registerOptionalParameter( "Chi2Cut", "Cut on chisquare for tracks passed to millepede", _chi2Cut, 1.);
 
   //registerOptionalParameter("ResidualsXMin","Minimal values of the hit residuals in the X direction for a track. Note: these numbers are ordered according to the z position of the sensors and NOT according to the sensor id.",_residualsXMin,MinimalResidualsX);
 
@@ -761,7 +762,7 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
       << event->getRunNumber()
       << ", currently having "
       << setw(9) << setiosflags(ios::right)
-      << _nMilleTracks << " tracks accepted"
+      << _nMilleTracks << " good GBL tracks "
       << setw(9) << setiosflags(ios::right)
       << _nTri<< " triplets "
       << setw(9) << setiosflags(ios::right)
@@ -1542,13 +1543,13 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 	    }
 
 	     streamlog_out(DEBUG2)  << " Is traj valid? " << traj.isValid() << std::endl;
-	    traj.printPoints();
-	    traj.printTrajectory();
-	    traj.printData();
+             if(_printEventCounter<2){
+                traj.printPoints();
+                traj.printTrajectory();
+                traj.printData();
+             }
 	    _printEventCounter++;
 	  }
-
-	  //cout << " chi2 " << Chi2 << ", ndf " << Ndf << endl;
 
 	  gblndfHist->fill( Ndf );
 	  gblchi2Hist->fill( Chi2 );
@@ -1556,8 +1557,8 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 	  gblprbHist->fill( probchi );
 
 	  // bad fits:
-
-	  if( probchi < 0.01 ) {
+// 	  if( probchi < 0.01 ) {
+	  if( Chi2< _chi2Cut) {
 
 	    badxHist->fill( xA ); // triplet at DUT
 	    badyHist->fill( yA );
@@ -1679,7 +1680,9 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
           gblkx5Hist->fill( (ax[5] - ax[4])*1E3 ); // kink at 5 [mrad]
 
 	  // do not pass very bad tracks to mille
-	  if(probchi > 0.001) {
+// 	  if(probchi > 0.001) {
+          if(Chi2< _chi2Cut)
+          {
 	    traj.milleOut( *milleGBL );
 	    nm++;
 	  }
@@ -2350,7 +2353,7 @@ void EUTelMilleGBL::bookHistos() {
     gblndfHist->setTitle( "GBL fit NDF;GBL NDF;tracks" );
 
     gblchi2Hist = AIDAProcessor::histogramFactory(this)->
-      createHistogram1D( "gblchi2", 100, 0, 100 );
+      createHistogram1D( "gblchi2", 1000, 0, 1000 );
     gblchi2Hist->setTitle( "GBL fit chi2;GBL chi2;tracks" );
 
     gblprbHist = AIDAProcessor::histogramFactory(this)->
