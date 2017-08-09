@@ -1321,7 +1321,7 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 	  // done with calculating sum eps
 
 	  // Paper showed HL predicts too high angle, at least for biased measurement. 
-	  double tetSi = _kappa*0.0136 * sqrt(epsSi) / p * ( 1 + 0.038*std::log(sumeps) );
+	  double tetSi = _kappa*0.0136 * sqrt(epsSi) / p * ( 1 + 0.038*std::log(epsSi) );
 	  double tetAir = -1.;
 
 
@@ -1443,7 +1443,7 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 	      //std::cout << " --- Add air --- " << std::endl;
 	      step = 0.21*distplane; // in [mm]
 	      epsAir =   0.5*distplane  / 304200.;  // in [mm]
-	      tetAir = _kappa*0.0136 * sqrt(epsAir) / p * ( 1 + 0.038*std::log(sumeps) );
+	      tetAir = _kappa*0.0136 * sqrt(epsAir) / p * ( 1 + 0.038*std::log(epsAir) );
 
 	      wscatAir[0] = 1.0 / ( tetAir * tetAir ); // weight
 	      wscatAir[1] = 1.0 / ( tetAir * tetAir ); 
@@ -1462,7 +1462,7 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 		gbl::GblPoint * pointcentre = new gbl::GblPoint( Jac55( step ) );
 
 	        if(_targetthick > 0.001) { // at least 1 um target
-		  double tetAlu = _kappa*0.0136 * sqrt(epsAlu) / p * ( 1 + 0.038*std::log(sumeps) );
+		  double tetAlu = _kappa*0.0136 * sqrt(epsAlu) / p * ( 1 + 0.038*std::log(epsAlu) );
 
 	          Eigen::Vector2d wscatAlu;
 	          wscatAlu[0] = 1.0 / ( tetAlu * tetAlu ); // weight
