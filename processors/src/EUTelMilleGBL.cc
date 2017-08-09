@@ -157,6 +157,7 @@ AIDA::IHistogram1D * seldy6Hist;
 
 AIDA::IHistogram1D * gblndfHist;
 AIDA::IHistogram1D * gblchi2Hist;
+AIDA::IHistogram1D * gblchi2ovNDFHist;
 AIDA::IHistogram1D * gblprbHist;
 
 AIDA::IHistogram1D * badxHist;
@@ -1553,6 +1554,7 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 
 	  gblndfHist->fill( Ndf );
 	  gblchi2Hist->fill( Chi2 );
+          gblchi2ovNDFHist->fill( Chi2/Ndf );
 	  double probchi = TMath::Prob( Chi2, Ndf );
 	  gblprbHist->fill( probchi );
 
@@ -2355,6 +2357,10 @@ void EUTelMilleGBL::bookHistos() {
     gblchi2Hist = AIDAProcessor::histogramFactory(this)->
       createHistogram1D( "gblchi2", 1000, 0, 1000 );
     gblchi2Hist->setTitle( "GBL fit chi2;GBL chi2;tracks" );
+
+    gblchi2ovNDFHist = AIDAProcessor::histogramFactory(this)->
+      createHistogram1D( "gblchi2ndf", 1000, 0, 100 );
+    gblchi2ovNDFHist ->setTitle( "GBL fit chi2 ov ndf; GBL chi2/ndf; tracks" );
 
     gblprbHist = AIDAProcessor::histogramFactory(this)->
       createHistogram1D( "gblprb", 100, 0, 1 );
