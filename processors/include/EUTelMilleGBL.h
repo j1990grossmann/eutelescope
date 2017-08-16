@@ -96,11 +96,6 @@ namespace eutelescope {
   };
 
 
-  //! Straight line fit processor
-  /*!
-   *
-   */
-
   class EUTelMilleGBL : public marlin::Processor {
 
   public:
@@ -225,6 +220,58 @@ namespace eutelescope {
       double measuredY;
       double measuredZ;
     };
+    enum GBL_Type 
+    { 
+        scatterer,
+        measurement,
+    };
+    enum GBL_Active
+    { 
+        active,
+        not_active,
+    };
+    class GBL_Point_Template{
+        GBL_Point_Template(){
+        }
+    public:
+        GBL_Active _gbl_active;
+        GBL_Type   _gbl_type;
+    protected:
+    private:        
+    }
+
+//  Object holding information about scattering Material to construct a GBL trajectory with a material budget estimate
+//     
+    class GBL_Trajectory_Template{
+    public:
+        GBL_Trajectory_Template(){
+        }
+        void print_geometry(const gear::SiPlanesLayerLayout&  siplaneslayerlayout);
+        //! Called for every run. 
+        /*! This is executed at the beginning of every run and fills a object containing the static gemoetry
+         */
+        void fill_geometry(const gear::SiPlanesLayerLayout&  siplaneslayerlayout);
+        //! Called for every run. 
+        /*! This is executed for every track fed into the GBL fit routine.
+         *  Fills an object with the absorber material and  central part of the 
+         *  angle distribution according to the gemoetry given in a gear file and a given track candidate with the highland formula.
+         *  FIXME The material thickness accounts for the track angle with respect to the plane of absorber material.
+         */
+        //         void fill_materialbudget(gear::SiPlanesLayerLayout * const siplaneslayerlayout);
+        /*! Prints the material budged and the GBL trajectory for a given track candidate. 
+         */
+//         void print_material_budget();
+//     protected:
+    private:
+        void fill_sort_ids(const gear::SiPlanesLayerLayout& siplaneslayerlayout);
+        void rotate(const gear::SiPlanesLayerLayout& siplaneslayerlayout);
+//      Refer to the first measurement or scatter z position upstream and the last Measurement downstream
+        double _zMin, _zMax;
+        std::vector< std::pair<unsigned int, double>> _id_zpos_vec;
+
+//     private:
+    };
+    
 
     /*DP
     virtual void FitTrack(
