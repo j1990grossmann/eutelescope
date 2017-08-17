@@ -29,9 +29,12 @@
 #include "EUTelBrickedClusterImpl.h"
 #include "EUTelSparseClusterImpl.h"
 #include "EUTelExceptions.h"
+// This header file produces to a lot of compiler warnings which are supressed for now and should be fixed
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
 #include "EUTelPStream.h" // process streams redi::ipstream
+#pragma GCC diagnostic pop
 #include "EUTelAlignmentConstant.h"
-
 // GBL:
 
 #include "include/GblTrajectory.h"
@@ -49,6 +52,8 @@
 // gear includes <.h>
 #include <gear/GearMgr.h>
 #include <gear/SiPlanesParameters.h>
+#include <gear/SiPlanesLayerLayout.h>
+#include <gear/gearxml/GearXML.h>
 
 // aida includes <.h>
 #if defined(USE_AIDA) || defined(MARLIN_USE_AIDA)
@@ -377,6 +382,14 @@ EUTelMilleGBL::EUTelMilleGBL(): Processor("EUTelMilleGBL") {
 
   //registerOptionalParameter("ResolutionY","Y resolution parameter for each plane. Note: these numbers are ordered according to the z position of the sensors and NOT according to the sensor id.",_resolutionY,std::vector<float> (static_cast <int> (6), 10.));
 
+  registerOptionalParameter("SensorID_Excluded",
+                            "SensorIDs from gear file which are excluded as active measurements. Mark scattering material here",
+                            _sensorID_excluded,std::vector< int > (static_cast <int> (1), 200));
+
+  registerOptionalParameter("SensorID_DUT",
+                            "Define the DUT sensor ID",
+                            _sensorID_DUT,static_cast < int>(100));
+
   //registerOptionalParameter("ResolutionZ","Z resolution parameter for each plane. Note: these numbers are ordered according to the z position of the sensors and NOT according to the sensor id.",_resolutionZ,std::vector<float> (static_cast <int> (6), 10.));
 
   //registerOptionalParameter("FixParameter","Fixes the given alignment parameters in the fit if alignMode==6 is used. For each sensor an integer must be specified (If no value is given, then all parameters will be free). bit 0 = x shift, bit 1 = y shift, bit 2 = z shift, bit 3 = alpha, bit 4 = beta, bit 5 = gamma. Note: these numbers are ordered according to the z position of the sensors and NOT according to the sensor id.",_FixParameter, std::vector<int> (static_cast <int> (6), 24));
@@ -458,6 +471,11 @@ void EUTelMilleGBL::init() {
 
   _siPlanesParameters  = const_cast<gear::SiPlanesParameters* > (&(Global::GEAR->getSiPlanesParameters()));
   _siPlanesLayerLayout = const_cast<gear::SiPlanesLayerLayout*> ( &(_siPlanesParameters->getSiPlanesLayerLayout() ));
+  
+  GBL_Trajectory_Template gbltemplate;
+  gbltemplate.print_geometry(*_siPlanesLayerLayout);
+  gbltemplate.fill_geometry(*_siPlanesLayerLayout);
+  
 
   _histogramSwitch = true;
 
@@ -844,21 +862,21 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 	for( int iHit = 0; iHit < collection->getNumberOfElements(); iHit++ ) {
 
 
-	  TrackerHitImpl * hit = static_cast<TrackerHitImpl*> ( collection->getElementAt(iHit) );
+	  TrackerHitImpl * tmp_hit = static_cast<TrackerHitImpl*> ( collection->getElementAt(iHit) );
 
-	  LCObjectVec clusterVector = hit->getRawHits();
+	  LCObjectVec clusterVector = tmp_hit->getRawHits();
 
 	  double minDistance =  numeric_limits< double >::max();
-	  double * hitPosition = const_cast<double * > (hit->getPosition());
+	  double * hitPosition = const_cast<double * > (tmp_hit->getPosition());
 
-	  for(  int i = 0; i < (int)_siPlaneZPosition.size(); i++ ) {
-	    double distance = std::abs( hitPosition[2] - _siPlaneZPosition[i] );
+	  for(  unsigned int layer_z = 0; layer_z < _siPlaneZPosition.size(); layer_z++ ) {
+	    double distance = std::abs( hitPosition[2] - _siPlaneZPosition[layer_z] );
 	    if( distance < minDistance ) {
 	      minDistance = distance;
-	      layerIndex = i;
+	      layerIndex = layer_z;
 	    }
 	  }
-	  if( minDistance > 30 /* mm */ ) {
+	  if( minDistance > 30  ) { // in mm
 	    // advise the user that the guessing wasn't successful
 	    streamlog_out( WARNING3 ) << "A hit was found " << minDistance << " mm far from the nearest plane\n"
 	      "Please check the consistency of the data with the GEAR file" << endl;
@@ -866,13 +884,13 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 
 	  // Getting positions of the hits.
 	  // ------------------------------
-	  hitsInPlane.measuredX = hit->getPosition()[0]; // mm !! (ARGH, PLEASE DO NOT USE [um])
-	  hitsInPlane.measuredY = hit->getPosition()[1]; // 
-	  hitsInPlane.measuredZ = hit->getPosition()[2]; // 
+	  hitsInPlane.measuredX = tmp_hit->getPosition()[0]; // mm !! (ARGH, PLEASE DO NOT USE [um])
+	  hitsInPlane.measuredY = tmp_hit->getPosition()[1]; // 
+	  hitsInPlane.measuredZ = tmp_hit->getPosition()[2]; // 
 
-	  if(_iEvt < 5) streamlog_out( DEBUG3 ) << "hit x = " << hit->getPosition()[0] << endl;
-	  if(_iEvt < 5) streamlog_out( DEBUG3 ) << "hit y = " << hit->getPosition()[1] << endl;
-	  if(_iEvt < 5) streamlog_out( DEBUG3 ) << "hit z = " << hit->getPosition()[2] << endl;
+// 	  if(_iEvt < 5) streamlog_out( MESSAGE0 ) << "hit x = " << tmp_hit->getPosition()[0] << endl;
+// 	  if(_iEvt < 5) streamlog_out( MESSAGE0 ) << "hit y = " << tmp_hit->getPosition()[1] << endl;
+// 	  if(_iEvt < 5) streamlog_out( MESSAGE0 ) << "hit z = " << tmp_hit->getPosition()[2] << endl;
 
 
 	  //printf("hit %5d of %5d , at %-8.3f %-8.3f %-8.3f, %5d %5d \n", iHit , collection->getNumberOfElements(), hitsInPlane.measuredX*1E-3, hitsInPlane.measuredY*1E-3, hitsInPlane.measuredZ*1E-3, indexconverter[layerIndex], layerIndex );
@@ -926,12 +944,12 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 
     }//loop over hits
 
-  /*
-     streamlog_out( MESSAGE2 ) << "hits per plane: ";
-     for( size_t i = 0; i < _hitsArray.size(); i++ )
-     streamlog_out( MESSAGE2 ) << _hitsArray[i].size() << "  ";
-     streamlog_out( MESSAGE2 ) << endl;
-     */
+  
+//      streamlog_out( MESSAGE2 ) << "hits per plane: ";
+//      for( size_t i = 0; i < _hitsArray.size(); i++ )
+//      streamlog_out( MESSAGE2 ) << _hitsArray[i].size() << "  ";
+//      streamlog_out( MESSAGE2 ) << endl;
+     
   // mode 1 or 3: tracks are read in
 
   // DP: correlate telescope hits from different planes
@@ -1315,7 +1333,6 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 	      epsAir =   distplane  / 304200.; 
 	      sumeps += epsAir;
 	    }
-
 	  }
 	  sumeps += epsAlu;
 	  // done with calculating sum eps
@@ -1448,13 +1465,13 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 	      wscatAir[0] = 1.0 / ( tetAir * tetAir ); // weight
 	      wscatAir[1] = 1.0 / ( tetAir * tetAir ); 
 
-	      gbl::GblPoint * point = new gbl::GblPoint( Jac55( step ) );
-	      point->addScatterer( scat, wscatAir );
+	      gbl::GblPoint * lpoint = new gbl::GblPoint( Jac55( step ) );
+	      lpoint->addScatterer( scat, wscatAir );
 
 	      s += step;
-	      traj_points.push_back(*point);
+	      traj_points.push_back(*lpoint);
 	      sPoint.push_back( s );
-	      delete point;
+	      delete lpoint;
 
 	      step = 0.58*distplane; // in [mm]
 	      if(ipl ==2){ // insert point at centre
@@ -1528,7 +1545,7 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 
 	  if(_printEventCounter < 10){
 	    streamlog_out(DEBUG4) << "traj with " << traj.getNumPoints() << " points:" << endl;
-	    for( int ipl = 0; ipl < sPoint.size(); ++ipl ){
+	    for( unsigned int ipl = 0; ipl < sPoint.size(); ++ipl ){
 	      streamlog_out(DEBUG4) << "  GBL point " << ipl;
 	      streamlog_out(DEBUG4) << "  z " << sPoint[ipl]; 
 	      streamlog_out(DEBUG4) << endl;
@@ -2011,7 +2028,10 @@ void EUTelMilleGBL::end() {
 
 	streamlog_out( MESSAGE2 ) << "Reading back the " << millepedeResFileName << endl
 	  << "Saving the alignment constant into " << _alignmentConstantLCIOFile << endl;
-
+        std::string gearfile="gearfile_new.xml";
+	streamlog_out( MESSAGE2 ) << "Drop gear file to "<<gearfile<<"\n";
+        gear::GearXML::createXMLFile (Global::GEAR, gearfile);
+        
 	// open the millepede ASCII output file
 	ifstream millepede( millepedeResFileName.c_str() );
 
@@ -2645,5 +2665,71 @@ void EUTelMilleGBL::bookHistos() {
 #endif
 
 }
-
+void EUTelMilleGBL::GBL_Trajectory_Template::print_geometry(const gear::SiPlanesLayerLayout&  siplaneslayerlayout){
+    streamlog_out(MESSAGE0)<<"PrintGeometry\n";
+    streamlog_out(MESSAGE0)<<"NLayers "   <<siplaneslayerlayout.getNLayers()<<"\n";
+    for(int i=0; i<siplaneslayerlayout.getNLayers(); i++){      
+        streamlog_out(MESSAGE0)<<"-----------------------------------------------------------------\n";
+        streamlog_out(MESSAGE0)<<"Layer ID "    <<siplaneslayerlayout.getID(i)<<"\n";
+        streamlog_out(MESSAGE0)<<"Pos X "       <<siplaneslayerlayout.getLayerPositionX(i)<<"\t";
+        streamlog_out(MESSAGE0)<<"Pos Y "       <<siplaneslayerlayout.getLayerPositionY(i)<<"\t";
+        streamlog_out(MESSAGE0)<<"Pos Z "       <<siplaneslayerlayout.getLayerPositionZ(i)<<"\n";
+        streamlog_out(MESSAGE0)<<"ROT XY "      <<siplaneslayerlayout.getLayerRotationXY(i)<<"\t";
+        streamlog_out(MESSAGE0)<<"ROT XZ "      <<siplaneslayerlayout.getLayerRotationZX(i)<<"\t";
+        streamlog_out(MESSAGE0)<<"ROT YZ "      <<siplaneslayerlayout.getLayerRotationZY(i)<<"\t";
+        streamlog_out(MESSAGE0)<<"Size X"       <<siplaneslayerlayout.getLayerSizeX(i)<<"\t";
+        streamlog_out(MESSAGE0)<<"Size Y"       <<siplaneslayerlayout.getLayerSizeY(i)<<"\t";
+        streamlog_out(MESSAGE0)<<"Thickness "   <<siplaneslayerlayout.getLayerThickness(i)<<"\t";
+        streamlog_out(MESSAGE0)<<"RadLength "   <<siplaneslayerlayout.getLayerRadLength(i)<<"\n";
+        streamlog_out(MESSAGE0)<<"-----------------------------------------------------------------\n";
+        //   }
+        //   for(int i=0; i<siplaneslayerlayout->getNLayers(); i++){      
+        streamlog_out(MESSAGE0)<<"-----------------------------------------------------------------\n";
+        streamlog_out(MESSAGE0)<<"SensitiveLayer ID "        <<siplaneslayerlayout.getSensitiveID(i)<<"\n";
+        streamlog_out(MESSAGE0)<<"SensitivePos X "           <<siplaneslayerlayout.getSensitivePositionX(i)<<"\t";
+        streamlog_out(MESSAGE0)<<"SensitivePos Y "           <<siplaneslayerlayout.getSensitivePositionY(i)<<"\t";
+        streamlog_out(MESSAGE0)<<"SensitivePos Z "           <<siplaneslayerlayout.getSensitivePositionZ(i)<<"\n";
+        streamlog_out(MESSAGE0)<<"SensitiveRotationXY "      <<siplaneslayerlayout.getSensitiveRotationXY(i)<<"\t";
+        streamlog_out(MESSAGE0)<<"SensitiveRotationZX "      <<siplaneslayerlayout.getSensitiveRotationZX(i)<<"\t";
+        streamlog_out(MESSAGE0)<<"SensitiveRotationZY"       <<siplaneslayerlayout.getSensitiveRotationZY(i)<<"\n";
+        streamlog_out(MESSAGE0)<<"SensitiveSizeX "           <<siplaneslayerlayout.getSensitiveSizeX(i)<<"\t";
+        streamlog_out(MESSAGE0)<<"SensitiveSizeY "           <<siplaneslayerlayout.getSensitiveSizeY(i)<<"\t";
+        streamlog_out(MESSAGE0)<<"SensitiveThickness "       <<siplaneslayerlayout.getSensitiveThickness(i)<<"\t";
+        streamlog_out(MESSAGE0)<<"SensitiveRadLength "       <<siplaneslayerlayout.getSensitiveRadLength(i)<<"\n";
+        streamlog_out(MESSAGE0)<<"SensitiveResolution  "     <<siplaneslayerlayout.getSensitiveResolution(i)<<"\t";
+        streamlog_out(MESSAGE0)<<"SensitiveResolutionX "     <<siplaneslayerlayout.getSensitiveResolutionX(i)<<"\t";
+        streamlog_out(MESSAGE0)<<"SensitiveResolutionY "     <<siplaneslayerlayout.getSensitiveResolutionY(i)<<"\n";
+        streamlog_out(MESSAGE0)<<"SensitivePitchX "          <<siplaneslayerlayout.getSensitivePitchX(i)<<"\t";
+        streamlog_out(MESSAGE0)<<"SensitivePitchY "          <<siplaneslayerlayout.getSensitivePitchY(i)<<"\n";
+        streamlog_out(MESSAGE0)<<"SensitiveRotation1 "       <<siplaneslayerlayout.getSensitiveRotation1(i)<<"\t";
+        streamlog_out(MESSAGE0)<<"SensitiveRotation2 "       <<siplaneslayerlayout.getSensitiveRotation2(i)<<"\t";
+        streamlog_out(MESSAGE0)<<"SensitiveRotation3 "       <<siplaneslayerlayout.getSensitiveRotation3(i)<<"\t";
+        streamlog_out(MESSAGE0)<<"SensitiveRotation4 "       <<siplaneslayerlayout.getSensitiveRotation4(i)<<"\n";
+        streamlog_out(MESSAGE0)<<"-----------------------------------------------------------------\n";
+    }
+    streamlog_out(MESSAGE0)<<"END PrintGeometry\n";
+    
+}
+void EUTelMilleGBL::GBL_Trajectory_Template::fill_sort_ids(const gear::SiPlanesLayerLayout&  siplaneslayerlayout){
+    for(int i=0; i<siplaneslayerlayout.getNLayers(); i++){
+        this->_id_zpos_vec.emplace_back(std::make_pair(siplaneslayerlayout.getID(i),siplaneslayerlayout.getLayerPositionZ(i)));
+    }
+    //     Sort vector with IDs according to z-position
+    std::sort(this->_id_zpos_vec.begin(),this->_id_zpos_vec.end(),[](const std::pair<unsigned int,double> &left, const std::pair<unsigned int,double> &right){
+        return left.second < right.second;
+    });
+    for(auto it=this->_id_zpos_vec.begin(); it!=this->_id_zpos_vec.end(); ++it)
+        streamlog_out(MESSAGE0)<<"LayerLayout ID "     <<it->first<<"\t"<<it->second<<"\n";
+}
+void EUTelMilleGBL::GBL_Trajectory_Template::fill_geometry(const gear::SiPlanesLayerLayout&  siplaneslayerlayout){
+    this->fill_sort_ids(siplaneslayerlayout);
+    for(unsigned int i=0; i<_id_zpos_vec.size(); i++){
+//      Due to insufficient gear file functionality ID's must be used to define Telescope
+//         if(_id_zpos_vec.at(i).first<100)
+//      DUT
+//         if(100<=_id_zpos_vec.at(i).first && _id_zpos_vec.at(i).first<200)
+//      Material Slabs
+//         if(200<=_id_zpos_vec.at(i).first)
+    }
+}
 #endif // USE_GEAR
