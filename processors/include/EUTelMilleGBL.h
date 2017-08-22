@@ -50,256 +50,251 @@
 class TMinuit;
 #endif
 
+#include <iostream>
 
 namespace eutelescope {
 
- 
-  //Specify a Rectangular in a sensor
-  class SensorRectangular {
-	protected:
-	// SensorID
-	int sensor;
-	// lowest pixel in X direction
-	int A; 
-	// lowest pixel in Y direction
-	int B;
-	// highest pixel in X direction
-	int C;
-	// highest pixel in Y direction
-	int D;
-	public:
-	SensorRectangular(int s, int a, int b, int c, int d) : sensor(s), A(a), B(b), C(c), D(d) {};
-	SensorRectangular() : sensor(0), A(0), B(0), C(0), D(0) {};
-	int getSensor() const {return sensor; }
-	//look if x and y are inside the foreseen rectangular
-	bool isInside(int x, int y) const {  return (x >=A && x <=C && y >=B && y <=D); }
-	void print() { streamlog_out(MESSAGE4) << "Sensor: " << sensor << ": (" << A << "|" << B << ") to (" << C << "|" << D << ")" << std::endl; }
-	
-  };
-  
-  class RectangularArray {
-  protected:
-    std::map<int,SensorRectangular > _rect;
-	
-  public:
-    void addRectangular(SensorRectangular &s) { _rect[s.getSensor() ] = s;}
-	
-    bool isInside(int s, int x, int y) {
-      std::map<int,SensorRectangular >::iterator it = _rect.find(s);
-      if (it == _rect.end()) { // not in the map means no limit on this sensor -> always true
-	return true;
-      }
-      SensorRectangular cSensor = _rect[s];
-      return cSensor.isInside(x,y);
+
+//Specify a Rectangular in a sensor
+class SensorRectangular {
+protected:
+    // SensorID
+    int sensor;
+    // lowest pixel in X direction
+    int A;
+    // lowest pixel in Y direction
+    int B;
+    // highest pixel in X direction
+    int C;
+    // highest pixel in Y direction
+    int D;
+public:
+    SensorRectangular(int s, int a, int b, int c, int d) : sensor(s), A(a), B(b), C(c), D(d) {};
+    SensorRectangular() : sensor(0), A(0), B(0), C(0), D(0) {};
+    int getSensor() const {
+        return sensor;
     }
-		
-  };
+    //look if x and y are inside the foreseen rectangular
+    bool isInside(int x, int y) const {
+        return (x >=A && x <=C && y >=B && y <=D);
+    }
+    void print() {
+        streamlog_out(MESSAGE4) << "Sensor: " << sensor << ": (" << A << "|" << B << ") to (" << C << "|" << D << ")" << std::endl;
+    }
+
+};
+
+class RectangularArray {
+protected:
+    std::map<int,SensorRectangular > _rect;
+
+public:
+    void addRectangular(SensorRectangular &s) {
+        _rect[s.getSensor() ] = s;
+    }
+
+    bool isInside(int s, int x, int y) {
+        std::map<int,SensorRectangular >::iterator it = _rect.find(s);
+        if (it == _rect.end()) { // not in the map means no limit on this sensor -> always true
+            return true;
+        }
+        SensorRectangular cSensor = _rect[s];
+        return cSensor.isInside(x,y);
+    }
+
+};
 
 
-  class EUTelMilleGBL : public marlin::Processor {
+class EUTelMilleGBL : public marlin::Processor {
 
-  public:
+public:
 #if defined(USE_ROOT) || defined(MARLIN_USE_ROOT)
     class hit
     {
     public:
-      hit()
-      {
-      }
-      hit(double tx, double ty, double tz, double rx, double ry, double rz,int i)
-      {
-        x = tx;
-        y = ty;
-        z = tz;
-        resolution_x = rx;
-        resolution_y = ry;
-        resolution_z = rz;
-    
-        planenumber = i;
-      }
-      double x;
-      double y;
-      double z;
-      double resolution_x;
-      double resolution_y;
-      double resolution_z;
-  
-      int planenumber;
-    };
+        hit()
+        {
+        }
+        hit(double tx, double ty, double tz, double rx, double ry, double rz,int i)
+        {
+            x = tx;
+            y = ty;
+            z = tz;
+            resolution_x = rx;
+            resolution_y = ry;
+            resolution_z = rz;
 
-   
-    /*
-    class trackfitter
-    {
-    public:
-      ~trackfitter()
-      {}
-      trackfitter()
-      {}
-      trackfitter(hit *h, unsigned int num)
-      {
-        hitsarray = h;
-        n = num;
-      }
-      double dot(const double *a, const double *b) const
-      {
-        return (a[0] * b[0] + a[1] * b[1] + a[2] * b[2]);
-      }
-      double fit (double *x, double *p)
-      {
-        double chi2 = 0.0;
-   
-        const unsigned int n = 3;
-        const double b0 = x[0];
-        const double b1 = x[1];
-        const double b2 = 0.0;
-    
-        const double alpha = x[2];
-        const double beta =  x[3];
-        const double c0 = TMath::Sin(beta);
-        const double c1 = -1.0*TMath::Cos(beta) * TMath::Sin(alpha);
-        const double c2 = TMath::Cos(alpha) * TMath::Cos(beta);
-    
-        double c[n] = {c0, c1, c2}; 
-        for(size_t i = 0; i < n;i++)
-          {
-            const double p0 = hitsarray[i].x;
-            const double p1 = hitsarray[i].y;
-            const double p2 = hitsarray[i].z;
-        
-            const double resol_x = hitsarray[i].resolution_x;
-            const double resol_y = hitsarray[i].resolution_y;
-            const double resol_z = hitsarray[i].resolution_z;
-        
-            //DP const double p[n] = {p0, p1, p2}; 
-        
-            const double pmb[n] = {p0-b0, p1-b1, p2-b2}; //p - b
-        
-            const double coeff = dot(c, pmb);
-            const double t[n] = {
-              b0 + c0 * coeff - p0,
-              b1 + c1 * coeff - p1,
-              b2 + c2 * coeff - p2
-            }; 
-        
-            //sum of distances divided by resolution^2
-            chi2 += t[0]*t[0] / pow(resol_x,2) 
-              + t[1]*t[1] / pow(resol_y,2) 
-              + t[2]*t[2] / pow(resol_z,2);
-          }
- 
-        return chi2;
-      }
-    private:
-      //std::vector<hit> hitsarray;
-    hit *hitsarray;
-    unsigned int n;
+            planenumber = i;
+        }
+        double x;
+        double y;
+        double z;
+        double resolution_x;
+        double resolution_y;
+        double resolution_z;
+
+        int planenumber;
     };
-    */
 #endif
 
     //! Variables for hit parameters
     class HitsInPlane {
     public:
-      HitsInPlane(){
-        measuredX = 0.0;
-        measuredY = 0.0;
-        measuredZ = 0.0;
-      }
-      HitsInPlane(double x, double y, double z)
-      {
-        measuredX = x;
-        measuredY = y;
-        measuredZ = z;
-      }
-      bool operator<(const HitsInPlane& b) const
-      {
-        return (measuredZ < b.measuredZ);
-      }
-      double measuredX;
-      double measuredY;
-      double measuredZ;
+        HitsInPlane() {
+            measuredX = 0.0;
+            measuredY = 0.0;
+            measuredZ = 0.0;
+        }
+        HitsInPlane(double x, double y, double z)
+        {
+            measuredX = x;
+            measuredY = y;
+            measuredZ = z;
+        }
+        bool operator<(const HitsInPlane& b) const
+        {
+            return (measuredZ < b.measuredZ);
+        }
+        double measuredX;
+        double measuredY;
+        double measuredZ;
     };
-    enum GBL_Type 
-    { 
+//     Template trajectory helper classes
+//     Measurement or Scatterer at GBL Point
+    enum class GBL_Type : uint8_t {
         scatterer,
         measurement,
+        air
     };
-    enum GBL_Active
-    { 
-        active,
-        not_active,
-    };
-    class GBL_Point_Template{
-        GBL_Point_Template(){
+    friend std::ostream& operator<< (std::ostream& rStream, const GBL_Type& flag ) {
+        switch (flag) {
+        case GBL_Type::scatterer :
+            rStream << "scatterer";
+            break;
+        case GBL_Type::measurement :
+            rStream << "measurement";
+            break;
+        case GBL_Type::air :
+            rStream << "air";
+            break;
+        default :
+            rStream << "Not a GBL_TYPE";
+            break;
         }
-    public:
-        GBL_Active _gbl_active;
-        GBL_Type   _gbl_type;
-    protected:
-    private:        
+        return rStream;
     }
-
-//  Object holding information about scattering Material to construct a GBL trajectory with a material budget estimate
-//     
-    class GBL_Trajectory_Template{
-    public:
-        GBL_Trajectory_Template(){
+//     Measurement included in the Fit Biased/Unbiased residuals (See GBL description)
+    enum class GBL_Active : uint8_t {
+        active,
+        not_active
+    };
+    friend std::ostream& operator<< (std::ostream& rStream, const GBL_Active& flag ) {
+        switch (flag) {
+        case GBL_Active::active :
+            rStream << "active";
+            break;
+        case GBL_Active::not_active :
+            rStream << "not active";
+            break;
+        default :
+            rStream << "Not a GBL_Active flag";
+            break;
         }
+        return rStream;
+    }
+    class GBL_Point_Template {
+        //         GBL_Point_Template(){
+        //         }
+    public:
+        double _step;
+        double _InverseScatAngleSqrt;
+        double _zpos;
+        double _radlen;
+        GBL_Type   _gbl_type;
+        GBL_Active _gbl_active;
+    };
+    
+//  Object holding information about scattering Material to construct a GBL trajectory with a material budget estimate
+//  Interfaces with the gear file geometry and is used to calculate the Scattering material
+    class GBL_Trajectory_Template {
+    public:
+        GBL_Trajectory_Template():
+            _distplane(0), _kappa(1.), _p(0), _sumeps(0), _n_dut(0), _n_deadlayer(0), _n_telplanes(0)
+        {
+            _proL2m = Eigen::Matrix2d::Identity();
+            //             Zero initialize measurement precision 1/resolution^2
+            _measPrec = Eigen::Vector2d::Zero();
+            //             Mean scattering angle is zero
+            _scat = Eigen::Vector2d::Zero();
+
+        }
+        //! Prints the tracker geometry from a gear file.
+        /*! This prints the tracker geometry.
+         */
         void print_geometry(const gear::SiPlanesLayerLayout&  siplaneslayerlayout);
-        //! Called for every run. 
+        //! Prints the template trajectory material budged and inverse scattering angles as calculated from gear file.
+        /*! This prints the track template used to fill a GBL trajectory
+         */
+        void print_template_traj();
+        //! Called for every run.
         /*! This is executed at the beginning of every run and fills a object containing the static gemoetry
          */
         void fill_geometry(const gear::SiPlanesLayerLayout&  siplaneslayerlayout);
-        //! Called for every run. 
+        //! Called for every run.
+        /*! Fill measurement precision vector from previous iteration with values obtained with Millepede
+         */
+        void set_res(double res_x, double res_y);
+        //! Called for every run.
+        /*! Fill measurement precision vector. Telescope resolution estimation with momentum in GeV and alignement steps.
+         */
+        void set_res(double p_momentum, int first_alignment_step);
+        //! Called for every run.
+        /*! Set kappa for highland formula default is 1
+         */
+        void set_kappa(double kappa);
+        void set_p(double p);
+        double get_kappa();
+        double get_p();
+        const std::vector<GBL_Point_Template>& getTemplateTraj() const { return _GBL_Template_Vec; }
+        const Eigen::Matrix2d& getproL2m() const { return _proL2m; }
+        const Eigen::Vector2d& getmeasPrec() const { return _measPrec; }
+        const Eigen::Vector2d& getscat() const { return _scat; }
+        //! Called for every run.
         /*! This is executed for every track fed into the GBL fit routine.
-         *  Fills an object with the absorber material and  central part of the 
+         *  Fills an object with the absorber material and  central part of the
          *  angle distribution according to the gemoetry given in a gear file and a given track candidate with the highland formula.
          *  FIXME The material thickness accounts for the track angle with respect to the plane of absorber material.
          */
-        //         void fill_materialbudget(gear::SiPlanesLayerLayout * const siplaneslayerlayout);
-        /*! Prints the material budged and the GBL trajectory for a given track candidate. 
+        //! Called for every run.
+        /*! This is executed at the beginning of every run and fills a object containing the static gemoetry
          */
-//         void print_material_budget();
+        //         void fill_materialbudget(gear::SiPlanesLayerLayout * const siplaneslayerlayout);
+        /*! Prints the material budged and the GBL trajectory for a given track candidate.
+         */
 //     protected:
     private:
         void fill_sort_ids(const gear::SiPlanesLayerLayout& siplaneslayerlayout);
-        void rotate(const gear::SiPlanesLayerLayout& siplaneslayerlayout);
+        void fill_x0(const gear::SiPlanesLayerLayout& siplaneslayerlayout, const std::vector<double>& layer_dist);
+//         See paper "Performance of the EUDET-type beam telescopes" equation 2
+        inline double scattering_fraction_var(double eps_scat);
 //      Refer to the first measurement or scatter z position upstream and the last Measurement downstream
-        double _zMin, _zMax;
+        double _distplane;
+        double _kappa;
+        double _p;
+        double _sumeps ;
+        unsigned int _n_dut, _n_deadlayer, _n_telplanes;
         std::vector< std::pair<unsigned int, double>> _id_zpos_vec;
+//         This vector stores the data used to build up the gbl trajectory
+        std::vector< GBL_Point_Template > _GBL_Template_Vec;
 
-//     private:
+        Eigen::Matrix2d _proL2m;
+        Eigen::Vector2d _measPrec;
+        Eigen::Vector2d _scat;
+        static constexpr double _epsAir = 303900.;
+        static constexpr double _airscat_dist_hi  = .5+std::pow(12,-.5);
+        static constexpr double _airscat_dist_lo  = .5-std::pow(12,-.5);
     };
-    
 
-    /*DP
-    virtual void FitTrack(
-                          int nPlanesFitter,
-                          double xPosFitter[],
-                          double yPosFitter[],
-                          double zPosFitter[],
-                          double xResFit[],
-                          double yResFit[],
-                          double chi2Fit[2],
-                          double residXFit[],
-                          double residYFit[],
-                          double angleFit[2]
-                          );
-    */
-
-
-    //recursive method which searches for track candidates
-
-    /*
-    virtual void findtracks(
-                            std::vector<std::vector<int> > &indexarray, //resulting vector of hit indizes
-                            std::vector<int> vec, //for internal use
-                            std::vector<std::vector<EUTelMilleGBL::HitsInPlane> > &_hitsArray, //contains all hits for each plane
-                            int i, //plane number
-                            int y //hit index number
-                            );
-    */
 
     //! Returns a new instance of EUTelMilleGBL
     /*! This method returns a new instance of this processor.  It is
@@ -309,7 +304,7 @@ namespace eutelescope {
      *  @return a new EUTelMilleGBL.
      */
     virtual Processor * newProcessor() {
-      return new EUTelMilleGBL;
+        return new EUTelMilleGBL;
     }
 
     //DP virtual bool hitContainsHotPixels( TrackerHitImpl   * hit) ;
@@ -338,7 +333,7 @@ namespace eutelescope {
 
     //! Called for first event per run
     /*! Reads hotpixel information from hotPixelCollection into hotPixelMap
-     * to be used in the sensor exclusion area logic 
+     * to be used in the sensor exclusion area logic
      */
     //DP virtual void  FillHotPixelMap(LCEvent *event);
 
@@ -378,7 +373,7 @@ namespace eutelescope {
     void bookHistos();
 
 
-  protected:
+protected:
 
 
     //! Ordered sensor ID
@@ -404,20 +399,20 @@ namespace eutelescope {
     std::string _trackCollectionName;
 
     //! Hot pixel collection name.
-    /*! 
+    /*!
      * this collection is saved in a db file to be used at the clustering level
      */
     //DP std::string _hotPixelCollectionName;
 
-    //! Vector of map arrays, keeps record of hit pixels 
+    //! Vector of map arrays, keeps record of hit pixels
     /*! The vector elements are sorted by Detector ID
-     *  For each Detector unique ID element a map of pixels is created. 
-     *  first level key   sensor unique 
+     *  For each Detector unique ID element a map of pixels is created.
+     *  first level key   sensor unique
      *              value sensor map
      *  sensor map key    unique row number
      *             value  vector of column numbers.
      */
-    
+
     //DP std::map<std::string, bool > _hotPixelMap;
 
 
@@ -427,7 +422,7 @@ namespace eutelescope {
     std::vector<float> _distanceMaxVec;
     std::vector<int > _excludePlanes; //only for internal usage
     std::vector<int > _excludePlanes_sensorIDs; //this is going to be
-                                                //set by the user.
+    //set by the user.
     std::vector<int > _FixedPlanes; //only for internal usage
     std::vector<int > _FixedPlanes_sensorIDs; //this is going to be
     //set by the user.
@@ -438,6 +433,8 @@ namespace eutelescope {
     double _sixCut;
     double _slopeCut;
     double _chi2Cut;
+    int _sensorID_DUT;
+
     int _IsFirstAlignStep;
 
     double _kappa;
@@ -464,7 +461,9 @@ namespace eutelescope {
     std::vector<float> _resolutionY;
     std::vector<float> _resolutionZ;
 
+    std::vector<int> _sensorID_excluded;
     std::vector<int> _FixParameter;
+
 
     int _generatePedeSteerfile;
     std::string _pedeSteerfileName;
@@ -473,7 +472,7 @@ namespace eutelescope {
     std::vector<float > _pedeUserStartValuesX;
     std::vector<float > _pedeUserStartValuesY;
     std::vector<float > _pedeUserStartValuesZ;
-    
+
     std::vector<float > _pedeUserStartValuesAlpha;
     std::vector<float > _pedeUserStartValuesBeta;
     std::vector<float > _pedeUserStartValuesGamma;
@@ -496,7 +495,7 @@ namespace eutelescope {
 
     std::vector<int> _useSensorRectangular;
 
-  private:
+private:
 
     //! Run number
     int _iRun;
@@ -506,7 +505,7 @@ namespace eutelescope {
     unsigned int _nTri;
     unsigned int _nDri;
     unsigned int _nSix;
-    
+
     //! counter for printed events (for debugging)
     int _printEventCounter;
 
@@ -603,19 +602,21 @@ namespace eutelescope {
     double * _yFitPos;
 
     std::vector<double> _siPlaneZPosition;
-
+    
+    GBL_Trajectory_Template _gbltemplate;
+    
     //! Fill histogram switch
     /*! Only for debug reason
      */
     bool _histogramSwitch;
 
-    //! Limits the pixels on each sensor-plane to a sub-rectangular  
+    //! Limits the pixels on each sensor-plane to a sub-rectangular
     RectangularArray _rect;
 
-  };
+};
 
-  //! A global instance of the processor
-  EUTelMilleGBL gEUTelMilleGBL;
+//! A global instance of the processor
+EUTelMilleGBL gEUTelMilleGBL;
 
 }
 #endif
