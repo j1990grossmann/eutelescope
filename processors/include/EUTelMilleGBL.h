@@ -219,7 +219,7 @@ public:
     class GBL_Trajectory_Template {
     public:
         GBL_Trajectory_Template():
-            _distplane(0), _kappa(1.), _p(0), _sumeps(0), _n_dut(0), _n_deadlayer(0), _n_telplanes(0)
+           _dist_triplet_driplet(0), _distplane(0), _kappa(1.), _p(0), _sumeps(0),  _n_dut(0), _n_deadlayer(0), _n_telplanes(0)
         {
             _proL2m = Eigen::Matrix2d::Identity();
             //             Zero initialize measurement precision 1/resolution^2
@@ -255,6 +255,7 @@ public:
         void set_p(double p);
         double get_kappa();
         double get_p();
+        inline double get_dist_triplet_driplet(){return _dist_triplet_driplet; };
         const std::vector<GBL_Point_Template>& getTemplateTraj() const { return _GBL_Template_Vec; }
         const Eigen::Matrix2d& getproL2m() const { return _proL2m; }
         const Eigen::Vector2d& getmeasPrec() const { return _measPrec; }
@@ -278,6 +279,7 @@ public:
 //         See paper "Performance of the EUDET-type beam telescopes" equation 2
         inline double scattering_fraction_var(double eps_scat);
 //      Refer to the first measurement or scatter z position upstream and the last Measurement downstream
+        double _dist_triplet_driplet;
         double _distplane;
         double _kappa;
         double _p;
@@ -418,7 +420,6 @@ protected:
 
     // parameters
 
-    float _distanceMax;
     std::vector<float> _distanceMaxVec;
     std::vector<int > _excludePlanes; //only for internal usage
     std::vector<int > _excludePlanes_sensorIDs; //this is going to be
@@ -433,7 +434,6 @@ protected:
     double _sixCut;
     double _slopeCut;
     double _chi2Cut;
-    int _sensorID_DUT;
 
     int _IsFirstAlignStep;
 
@@ -461,7 +461,6 @@ protected:
     std::vector<float> _resolutionY;
     std::vector<float> _resolutionZ;
 
-    std::vector<int> _sensorID_excluded;
     std::vector<int> _FixParameter;
 
 
@@ -557,7 +556,6 @@ private:
     // Partly outdated GEAR readings:
     int * _planeSort;
     int * _planeID;
-    double * _planePosition;
     double * _planeThickness;
     double * _planeX0;
     double * _planeResolution;

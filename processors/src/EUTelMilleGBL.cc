@@ -229,12 +229,6 @@ AIDA::IHistogram1D * gbldy6Hist;
 AIDA::IHistogram1D * gblrx6Hist;
 AIDA::IHistogram1D * gblry6Hist;
 
-AIDA::IHistogram1D * gblaxdutHist;
-AIDA::IHistogram1D * gbldxdutHist;
-AIDA::IHistogram1D * gbldydutHist;
-AIDA::IHistogram1D * gblrxdutHist;
-AIDA::IHistogram1D * gblrydutHist;
-
 AIDA::IHistogram1D * gblkx1Hist;
 AIDA::IHistogram1D * gblkx2Hist;
 AIDA::IHistogram1D * gblkx3Hist;
@@ -332,13 +326,6 @@ EUTelMilleGBL::EUTelMilleGBL(): Processor("EUTelMilleGBL") {
                                 "Bool: yes/no",
                                 _IsFirstAlignStep, static_cast < int >( 0));
 
-    // deprecated
-    //registerOptionalParameter("DistanceMax","Maximal allowed distance between hits entering the fit per 10 cm space between the planes.",
-    //                          _distanceMax, static_cast <float> (2000.0));
-    //
-    //registerOptionalParameter("DistanceMaxVec","Maximal allowed distance between hits entering the fit per 10 cm space between the planes. One value for each neighbor planes. DistanceMax will be used for each pair if this vector is empty.",
-    //                          _distanceMaxVec, std::vector<float> ());
-
     registerOptionalParameter("ExcludePlanes","Exclude planes from fit according to their sensor ids.",_excludePlanes_sensorIDs ,std::vector<int>());
 
     registerOptionalParameter("FixedPlanes","Fix sensor planes in the fit according to their sensor ids.",_FixedPlanes_sensorIDs ,std::vector<int>());
@@ -388,14 +375,6 @@ EUTelMilleGBL::EUTelMilleGBL(): Processor("EUTelMilleGBL") {
     //registerOptionalParameter("ResolutionX","X resolution parameter for each plane. Note: these numbers are ordered according to the z position of the sensors and NOT according to the sensor id.",_resolutionX,  std::vector<float> (static_cast <int> (6), 10.));
 
     //registerOptionalParameter("ResolutionY","Y resolution parameter for each plane. Note: these numbers are ordered according to the z position of the sensors and NOT according to the sensor id.",_resolutionY,std::vector<float> (static_cast <int> (6), 10.));
-
-    registerOptionalParameter("SensorID_Excluded",
-                              "SensorIDs from gear file which are excluded as active measurements. Mark scattering material here",
-                              _sensorID_excluded,std::vector< int > (static_cast <int> (1), 200));
-
-    registerOptionalParameter("SensorID_DUT",
-                              "Define the DUT sensor ID",
-                              _sensorID_DUT,static_cast < int>(100));
 
     //registerOptionalParameter("ResolutionZ","Z resolution parameter for each plane. Note: these numbers are ordered according to the z position of the sensors and NOT according to the sensor id.",_resolutionZ,std::vector<float> (static_cast <int> (6), 10.));
 
@@ -479,28 +458,17 @@ void EUTelMilleGBL::init() {
     _siPlanesParameters  = const_cast<gear::SiPlanesParameters* > (&(Global::GEAR->getSiPlanesParameters()));
     _siPlanesLayerLayout = const_cast<gear::SiPlanesLayerLayout*> ( &(_siPlanesParameters->getSiPlanesLayerLayout() ));
 
-//     GBL_Trajectory_Template gbltemplate;
+//  Initialize the GBL template trajectory from the gear file
     _gbltemplate.set_kappa(_kappa);
     _gbltemplate.set_p(_eBeam);
     _gbltemplate.fill_geometry(*_siPlanesLayerLayout);
     _gbltemplate.set_res(_eBeam,_IsFirstAlignStep);
-
+    _gbltemplate.print_template_traj();
 
     _histogramSwitch = true;
 
     // Take all layers defined in GEAR geometry
     _nTelPlanes = _siPlanesLayerLayout->getNLayers();
-
-    _planePosition = new double[_nTelPlanes]; // z pos
-
-    for(int i = 0; i < _nTelPlanes; i++) {
-
-        //_planeID[i]=_siPlanesLayerLayout->getID(i);
-        _planePosition[i]=_siPlanesLayerLayout->getLayerPositionZ(i);
-        //_planeThickness[i]=_siPlanesLayerLayout->getLayerThickness(i);
-        //_planeX0[i]=_siPlanesLayerLayout->getLayerRadLength(i);
-        //_planeResolution[i] = _siPlanesLayerLayout->getSensitiveResolution(i);
-    }
 
     streamlog_out(MESSAGE4) << "assumed beam energy " << _eBeam << " GeV" <<  endl;
     //lets guess the number of planes
@@ -561,13 +529,14 @@ void EUTelMilleGBL::init() {
 
     //lets create an array with the z positions of each layer
     for(  int iPlane = 0 ; iPlane < _siPlanesLayerLayout->getNLayers(); iPlane++ ) {
-        _siPlaneZPosition.push_back(_siPlanesLayerLayout->getLayerPositionZ(iPlane));
-        sensorIDMap.insert( make_pair( _siPlanesLayerLayout->getLayerPositionZ(iPlane), _siPlanesLayerLayout->getID(iPlane) ) );
+        if(_siPlanesLayerLayout->getID(iPlane)<100){
+            _siPlaneZPosition.push_back(_siPlanesLayerLayout->getLayerPositionZ(iPlane));
+            sensorIDMap.insert( make_pair( _siPlanesLayerLayout->getLayerPositionZ(iPlane), _siPlanesLayerLayout->getID(iPlane) ) );
+        }
     }
-
     if  ( _siPlanesParameters->getSiPlanesType() == _siPlanesParameters->TelescopeWithDUT ) {
-        _siPlaneZPosition.push_back(_siPlanesLayerLayout->getDUTPositionZ());
-        sensorIDMap.insert( make_pair( _siPlanesLayerLayout->getDUTPositionZ(),  _siPlanesLayerLayout->getDUTID() ) ) ;
+            _siPlaneZPosition.push_back(_siPlanesLayerLayout->getDUTPositionZ());
+            sensorIDMap.insert( make_pair( _siPlanesLayerLayout->getDUTPositionZ(),  _siPlanesLayerLayout->getDUTID() ) ) ;
     }
 
     //lets sort the array with increasing z
@@ -685,23 +654,6 @@ void EUTelMilleGBL::init() {
 
     streamlog_out( MESSAGE2 ) << "The filename for the binary file is: " << _binaryFilename.c_str() << endl;
 
-
-    /*if( _distanceMaxVec.size() > 0 ) {
-      if(_distanceMaxVec.size() !=  static_cast<unsigned int>(_nPlanes )-1 ) {
-      streamlog_out( WARNING2 ) << "Consistency check of the DistanceMaxVec array failed. Its size is different compared to the number of planes! Will now use _distanceMax for each pair of planes." << endl;
-      _distanceMaxVec.clear();
-      for(int i = 0; i < _nPlanes-1; i++) {
-      _distanceMaxVec.push_back(_distanceMax);
-      }
-      }
-      }
-      else {
-      _distanceMaxVec.clear();
-      for(int i = 0; i < _nPlanes-1; i++) {
-      _distanceMaxVec.push_back(_distanceMax);
-      }
-      }
-      */
 
     // apply correction to cut if is not first alignment step
     if(!_IsFirstAlignStep) {
@@ -1074,8 +1026,9 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
                     double zs = _hitsArray[i1][j1].measuredZ - avz;
                     double xs = avx + tx * zs; // doublet extrapolation at 1
                     double ys = avy + ty * zs;
-
-                    double zDUT = _hitsArray[i0][j0].measuredZ + 2.0 * avz + 0.5*(_planePosition[3] - _planePosition[2]); // halfway b/wp2 and p3
+                    
+//                     double zDUT = _hitsArray[i0][j0].measuredZ + 2.0 * avz + 0.5*(_planePosition[3] - _planePosition[2]); // halfway b/wp2 and p3
+                    double zDUT = _hitsArray[i0][j0].measuredZ + 2.0 * avz + 0.5*_gbltemplate.get_dist_triplet_driplet(); // halfway b/wp2 and p3
                     double xA = _hitsArray[i0][j0].measuredX + tx * zDUT; // doublet extrapolation at zDUT
                     double yA = _hitsArray[i0][j0].measuredY + ty * zDUT; // doublet extrapolation at zDUT
 
@@ -1163,7 +1116,7 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
                     double xs = avx + tx * zs; // track at 4
                     double ys = avy + ty * zs;
 
-                    double zDUT = _hitsArray[i5][j5].measuredZ - 2.0 * avz - 0.5*(_planePosition[3] - _planePosition[2]);
+                    double zDUT = _hitsArray[i5][j5].measuredZ - 2.0 * avz - 0.5*_gbltemplate.get_dist_triplet_driplet();
                     double xA = _hitsArray[i5][j5].measuredX - tx * zDUT; // doublet extrapolation at zDUT
                     double yA = _hitsArray[i5][j5].measuredY - ty * zDUT; // doublet extrapolation at zDUT
 
@@ -1245,7 +1198,6 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 
                 if( abs(dx) < _sixCut  && abs(dy) < _sixCut ) { // triplet-driplet match
                     _nSix++;
-//           continue;
 
                     double kx = sxB[kB] - sxA[kA]; //kink
                     double ky = syB[kB] - syA[kA];
@@ -1259,97 +1211,6 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 
                     // build up trajectory:
                     std::vector<unsigned int> ilab; // 0-5 = telescope, 6 = DUT, 7 = REF
-                    vector<double> sPoint;
-                    std::vector<double> oneoverthetaisquared;
-                    std::vector<double> steps;
-
-                    // the arc length at the first measurement plane is 0.
-                    double arc_len = 0;
-
-                    Eigen::Matrix2d proL2m = Eigen::Matrix2d::Identity();
-
-                    // this depends on threshold, energy, dz, and number of iterations done ...
-                    // We make an accurate, heuristic  guess
-                    double resx = -1.; // [mm] telescope initial resolution for ONLY PREALIGNED t'scope! this is not 3.24 !
-                    double resy = -1.; // [mm] telescope initial resolution
-
-                    double distplane = _planePosition[1] - _planePosition[0];
-                    if( distplane > 100. ) {
-                        resx = 100. - p*8;
-                        resy = resx;
-                        if (p > 11) {
-                            resx = 8;
-                            resy = resx;
-                        }
-                    }
-
-                    if( distplane < 30. ) {
-                        resx = 20. - p*1.5; // if only tracks with prob(chi2,ndf) > 0.001 are passed to Mille
-                        resy = resx;
-                    }
-
-                    if( distplane > 30. && distplane < 100. ) {
-                        resx = 50 - p*3.8;
-                        resy = resx;
-                        if (p > 10) {
-                            resx = 6.;
-                            resy = resx;
-                        }
-                    }
-
-                    if(!_IsFirstAlignStep) {
-                        // 2nd iteration 20
-                        if( distplane < 30. ) {
-                            resx = 4.4 - p*0.1;
-                            resy = resx;
-                        }
-                        // 2nd iteration 150
-                        if( distplane > 100. ) {
-                            resx = 18 - p*1.5;
-                            resy = resx;
-                        }
-                    }
-
-                    resx = resx/1000.; // finally convert to [mm]
-                    resy = resy/1000.;
-                    if(_printEventCounter < 10) streamlog_out( MESSAGE2 ) << "res x = " << resx << endl;
-
-                    Eigen::Vector2d measPrec; // precision = 1/resolution^2
-                    measPrec[0] = 1.0 / resx / resx;
-                    measPrec[1] = 1.0 / resy / resy;
-
-                    // scatter:
-                    Eigen::Vector2d scat = Eigen::Vector2d::Zero(); //mean is zero
-
-                    double epsSi = 55e-3 / 93.66 + 0.050 / 286.6; // Si + Kapton
-                    double epsAir = -1.; // define later when dz is known
-                    double epsAlu = _targetthick/88.97; // Alu target
-                    double sumeps = 0.0;
-
-
-                    // loop over all scatterers first to calculate sumeps, needed for log correctionin Highland
-                    for( int ipl = 0; ipl < 6; ++ipl ) {
-                        sumeps += epsSi;
-                        if( ipl < 5) {
-                            distplane = _planePosition[ipl+1] - _planePosition[ipl];
-                            epsAir =   distplane  / 304200.;
-                            sumeps += epsAir;
-                        }
-                    }
-                    sumeps += epsAlu;
-                    // done with calculating sum eps
-
-                    // Paper showed HL predicts too high angle, at least for biased measurement.
-                    double tetSi = _kappa*0.0136 * sqrt(epsSi) / p * ( 1 + 0.038*std::log(sumeps) );
-                    double tetAir = -1.;
-
-
-                    Eigen::Vector2d wscatSi;
-                    wscatSi[0] = 1.0 / ( tetSi * tetSi ); //weight
-                    wscatSi[1] = 1.0 / ( tetSi * tetSi );
-
-                    Eigen::Vector2d wscatAir;
-
 
                     Eigen::Matrix2d alDer2; // alignment derivatives
                     alDer2(0,0) = 1.0; // dx/dx GBL sign convetion
@@ -1378,148 +1239,82 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 
                     int jhit = hts[0][kA];
                     //double zprev = _hitsArray[0][jhit].measuredZ; // first plane, including any pre-alignment
-                    double step = .0;
                     unsigned int iLabel;
-
-                    for( int ipl = 0; ipl < 6; ++ipl ) {
-                        if( ipl < 3 )
-                            jhit = hts[ipl][kA];
-                        else
-                            jhit = hts[ipl][kB];
-
-                        double zz = _hitsArray[ipl][jhit].measuredZ; // [mm]
-
-                        //double step = zz - zprev;
-                        //
-                        // transport matrix in (q/p, x', y', x, y) space
-                        auto jacPointToPoint = Jac55( step );
-                        gbl::GblPoint *point = new gbl::GblPoint( jacPointToPoint );
-                        arc_len += step;
-                        //zprev = zz;
-
-                        // extrapolate triplet vector A to each plane:
-                        double dz = zz - zmA[kA];
-                        double xs = (xmA[kA] + sxA[kA] * dz); // Ax at plane
-                        double ys = (ymA[kA] + syA[kA] * dz); // Ay at plane
-                        if(_printEventCounter < 10) std::cout << "dz = " << dz << "   xs = " << xs << "   ys = " << ys << std::endl;
-
-                        rx[ipl] = (_hitsArray[ipl][jhit].measuredX - xs); // resid hit-triplet, in micrometer ...
-                        ry[ipl] = (_hitsArray[ipl][jhit].measuredY - ys); // resid
-
-                        Eigen::Vector2d meas;
-                        meas[0] = rx[ipl]; // fill meas vector for GBL
-                        meas[1] = ry[ipl];
-
-                        point->addMeasurement( proL2m, meas, measPrec );
-
-                        point->addScatterer( scat, wscatSi );
-                        oneoverthetaisquared.emplace_back(wscatSi[0]);
-
-
-                        if( _alignMode == Utility::alignMode::XYShifts ) { // only x and y shifts
-                            // global labels for MP:
-                            std::vector<int> globalLabels(2);
-                            globalLabels[0] = 1 + 2*ipl;
-                            globalLabels[1] = 2 + 2*ipl;
-                            point->addGlobals( globalLabels, alDer2 ); // for MillePede alignment
-                        }
-                        else if( _alignMode == Utility::alignMode::XYShiftsRotZ ) { // with rot
-                            std::vector<int> globalLabels(3);
-                            globalLabels[0] = 1 + 3*ipl; // x
-                            globalLabels[1] = 2 + 3*ipl; // y
-                            globalLabels[2] = 3 + 3*ipl; // rot
-                            //alDer3[0][2] = -_hitsArray[ipl][jhit].measuredY; // dx/dphi
-                            //alDer3[1][2] =  _hitsArray[ipl][jhit].measuredX; // dy/dphi
-                            alDer3(0,2) = -ys; // dx/dphi
-                            alDer3(1,2) =  xs; // dy/dphi
-                            point->addGlobals( globalLabels, alDer3 ); // for MillePede alignment
-                        }
-                        else if( _alignMode == Utility::alignMode::XYZShiftsRotZ ) { // with rot and z shift
-                            std::vector<int> globalLabels(4);
-                            globalLabels[0] = 1 + 4*ipl;
-                            globalLabels[1] = 2 + 4*ipl;
-                            globalLabels[2] = 3 + 4*ipl;
-                            globalLabels[3] = 4 + 4*ipl; // z
-                            //alDer4[0][2] = -_hitsArray[ipl][jhit].measuredY; // dx/dphi
-                            //alDer4[1][2] =  _hitsArray[ipl][jhit].measuredX; // dy/dphi
-                            alDer4(0,2) = -ys; // dx/dphi
-                            alDer4(1,2) =  xs; // dy/dphi
-                            point->addGlobals( globalLabels, alDer4 ); // for MillePede alignment
-                        }
-
-//                         sPoint.push_back( s );
-                        sPoint.push_back( arc_len );
-                        iLabel = sPoint.size();
-                        ilab.push_back(iLabel);
-                        steps.emplace_back(step);
-                        traj_points.push_back(*point);
-
-                        delete point;
-
-
-                        if( ipl < 5) {
-                            distplane = _planePosition[ipl+1] - _planePosition[ipl];
-
-                            //std::cout << " --- Add air --- " << std::endl;
-                            step = 0.21*distplane; // in [mm]
-                            epsAir =   0.5*distplane  / 304200.;  // in [mm]
-                            tetAir = _kappa*0.0136 * sqrt(epsAir) / p * ( 1 + 0.038*std::log(sumeps) );
-
-                            wscatAir[0] = 1.0 / ( tetAir * tetAir ); // weight
-                            wscatAir[1] = 1.0 / ( tetAir * tetAir );
-
-                            gbl::GblPoint * lpoint = new gbl::GblPoint( Jac55( step ) );
-                            lpoint->addScatterer( scat, wscatAir );
-                            oneoverthetaisquared.emplace_back(wscatAir[0]);
-
-                            arc_len += step;
-                            traj_points.push_back(*lpoint);
-                            sPoint.push_back( arc_len );
-                            steps.emplace_back(step);
-                            delete lpoint;
-
-                            step = 0.58*distplane; // in [mm]
-                            if(ipl ==2) { // insert point at centre
-                                step = step / 2.;
-                                gbl::GblPoint * pointcentre = new gbl::GblPoint( Jac55( step ) );
-
-                                if(_targetthick > 0.001) { // at least 1 um target
-                                    double tetAlu = _kappa*0.0136 * sqrt(epsAlu) / p * ( 1 + 0.038*std::log(sumeps) );
-
-                                    Eigen::Vector2d wscatAlu;
-                                    wscatAlu[0] = 1.0 / ( tetAlu * tetAlu ); // weight
-                                    wscatAlu[1] = 1.0 / ( tetAlu * tetAlu );
-
-                                    pointcentre->addScatterer( scat, wscatAlu );
-                                    oneoverthetaisquared.emplace_back(wscatAlu[0]);
-                                }else{
-                                    oneoverthetaisquared.emplace_back(0);
+//                     for( int ipl = 0; ipl < 6; ++ipl ) {
+                    auto tmp_traj = _gbltemplate.getTemplateTraj();
+                    // Counter for number measurements
+//                  Take the template trajectory and fill with data.
+                    unsigned int ipl=0; 
+                    for( unsigned int gbl_counter =0; gbl_counter<tmp_traj.size(); gbl_counter++){
+//                      Construct a new gbl point
+                        auto jacPointToPoint = Jac55( tmp_traj.at( gbl_counter )._step );
+                        auto point = gbl::GblPoint( jacPointToPoint );
+//                         For measurements only:
+                        if(tmp_traj.at( gbl_counter )._gbl_type==GBL_Type::measurement){
+                            if( ipl < 3 )
+                                jhit = hts[ipl][kA];
+                            else
+                                jhit = hts[ipl][kB];
+                            double zz = _hitsArray[ipl][jhit].measuredZ; // [mm]
+                            // transport matrix in (q/p, x', y', x, y) space
+                            // extrapolate triplet vector A to each plane:
+                            double dz = zz - zmA[kA];
+                            double xs = (xmA[kA] + sxA[kA] * dz); // Ax at plane
+                            double ys = (ymA[kA] + syA[kA] * dz); // Ay at plane
+                            if(_printEventCounter < 10) std::cout << "dz = " << dz << "   xs = " << xs << "   ys = " << ys << std::endl;
+                            
+                            rx[ipl] = (_hitsArray[ipl][jhit].measuredX - xs); // resid hit-triplet, in micrometer ...
+                            ry[ipl] = (_hitsArray[ipl][jhit].measuredY - ys); // resid
+                            
+                            Eigen::Vector2d meas(rx[ipl],ry[ipl]);
+                            point.addMeasurement( _gbltemplate.getproL2m(), meas, _gbltemplate.getmeasPrec());
+                            switch(_alignMode) {
+                                case Utility::alignMode::XYShifts:{
+                                    std::vector<int> globalLabels(2);
+                                    globalLabels[0] = 1 + 2*ipl;
+                                    globalLabels[1] = 2 + 2*ipl;
+                                    point.addGlobals( globalLabels, alDer2 ); // for MillePede alignment
+                                    break;
                                 }
-                                arc_len += step;
-                                traj_points.push_back(*pointcentre);
-                                sPoint.push_back( arc_len );
-                                steps.emplace_back(step);
-                                //centre_label = sPoint.size();
-                                delete pointcentre;
-                                // now again step/2
+                                case Utility::alignMode::XYShiftsRotZ:{
+                                    std::vector<int> globalLabels(3);
+                                    globalLabels[0] = 1 + 3*ipl; // x
+                                    globalLabels[1] = 2 + 3*ipl; // y
+                                    globalLabels[2] = 3 + 3*ipl; // rot
+                                    alDer3(0,2) = -ys; // dx/dphi
+                                    alDer3(1,2) =  xs; // dy/dphi
+                                    point.addGlobals( globalLabels, alDer3 ); // for MillePede alignment
+                                    break;
+                                }
+                                case Utility::alignMode::XYZShiftsRotZ :{
+                                    std::vector<int> globalLabels(4);
+                                    globalLabels[0] = 1 + 4*ipl;
+                                    globalLabels[1] = 2 + 4*ipl;
+                                    globalLabels[2] = 3 + 4*ipl;
+                                    globalLabels[3] = 4 + 4*ipl; // z
+                                    alDer4(0,2) = -ys; // dx/dphi
+                                    alDer4(1,2) =  xs; // dy/dphi
+                                    point.addGlobals( globalLabels, alDer4 ); // for MillePede alignment
+                                    break;
+                                }
+                                default:{
+                                    // without initializing it
+                                    streamlog_out(ERROR) << "No such align mode defined\n";
+                                    break;
+                                }
                             }
-
-                            gbl::GblPoint * point1 = new gbl::GblPoint( Jac55( step ) );
-                            point1->addScatterer( scat, wscatAir );
-                            oneoverthetaisquared.emplace_back(wscatAir[0]);
-
-                            arc_len += step;
-                            traj_points.push_back(*point1);
-                            sPoint.push_back( arc_len );
-                            steps.emplace_back(step);
-                            delete point1;
-
-                            step = 0.21*distplane; // remaing distance to next plane, in [mm]
+                            if(ipl<6)
+                            {
+                                ilab.emplace_back(gbl_counter+1);
+                                ipl++;
+                            }else{
+                                streamlog_out(ERROR) << "To many measurement defined in gear file (Currently tracking allows 6\n";
+                            }
                         }
-
-
-
-                    } // loop over planes
+                        Eigen::Vector2d wscat(tmp_traj.at( gbl_counter )._InverseScatAngleSqrt,tmp_traj.at( gbl_counter )._InverseScatAngleSqrt );
+                        point.addScatterer( _gbltemplate.getscat(), wscat );
+                        traj_points.emplace_back(point);
+                    } // loop over all template traj points
 
                     // REF:
 
@@ -1548,24 +1343,10 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
                     int Ndf;
                     double lostWeight;
                     if(_printEventCounter < 10) {
-                        streamlog_out(MESSAGE0) << "Trajectory points\n";
-                        if(traj_points.size()!=oneoverthetaisquared.size())
-                        {
-                            streamlog_out(DEBUG4) << "No size match for scatterers\n" ;
-                        }
-                        for( unsigned int pt = 0; pt< oneoverthetaisquared.size(); ++pt) {
-                            streamlog_out(DEBUG4) << "One over thetasquared cur"<<std::scientific<<pt<<"\t"<<oneoverthetaisquared.at(pt)<<std::fixed<<"\n" ;
-                        }
+                        streamlog_out(DEBUG4) << "Trajectory points\n";
                         auto tmpvec = _gbltemplate.getTemplateTraj();
                         for( unsigned int pt = 0; pt< tmpvec.size(); ++pt) {
-                            streamlog_out(DEBUG4) << "One over thetasquared"<<pt<<"\t"<<std::scientific<<tmpvec.at(pt)._InverseScatAngleSqrt<<std::fixed<<"\n" ;
-                        }
-                        if(traj_points.size()!=steps.size())
-                        {
-                            streamlog_out(DEBUG4) << "No size match for steps jacobian\n" ;
-                        }
-                        for( unsigned int pt = 0; pt< steps.size(); ++pt) {
-                            streamlog_out(DEBUG4) << "Jacobian cur"<<std::scientific<<pt<<"\t"<<steps.at(pt)<<std::fixed<<"\n" ;
+                            streamlog_out(DEBUG4) << "(1/theta_0,i)^2 "<<pt<<"\t"<<std::scientific<<tmp_traj.at(pt)._InverseScatAngleSqrt<<std::fixed<<"\n" ;
                         }
                         for( unsigned int pt = 0; pt< tmpvec.size(); ++pt) {
                             streamlog_out(DEBUG4) << "Jacobian step fix"<<pt<<"\t"<<std::scientific<<tmpvec.at(pt)._step<<std::fixed<<"\n" ;
@@ -1573,33 +1354,35 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
                     }
                     gbl::GblTrajectory traj(traj_points, false); // curvature = false
                     traj.fit( Chi2, Ndf, lostWeight );
-                    //traj.getLabels(ilab); // instead pushback sPoint.size() when adding plane
 
                     // debug:
-
                     if(_printEventCounter < 10) {
                         streamlog_out(DEBUG4) << "traj with " << traj.getNumPoints() << " points:" << endl;
-                        for( unsigned int ipl = 0; ipl < sPoint.size(); ++ipl ) {
-                            streamlog_out(DEBUG4) << "  GBL point " << ipl;
-                            streamlog_out(DEBUG4) << "  z " << sPoint[ipl];
-                            streamlog_out(DEBUG4) << endl;
+                        for( unsigned int tipl = 0; tipl < tmp_traj.size(); tipl++ ) {
+                            streamlog_out(DEBUG4) << "  GBL point " << tipl;
+                            streamlog_out(DEBUG4) << "  z " << tmp_traj.at(tipl)._zpos;
+                            streamlog_out(DEBUG4) << "\n";
                         }
-                        for( int ipl = 0; ipl < 6; ++ipl ) {
-                            streamlog_out(DEBUG4) << " plane " << ipl << ", lab " << ilab[ipl];
-                            streamlog_out(DEBUG4) << " z " << sPoint[ilab[ipl]-1];
-                            streamlog_out(DEBUG4) << "  dx " << rx[ipl];
-                            streamlog_out(DEBUG4) << "  dy " << ry[ipl];
-                            streamlog_out(DEBUG4) << "  chi2 " << Chi2;
-                            streamlog_out(DEBUG4) << "  ndf " << Ndf;
-                            streamlog_out(DEBUG4) << endl;
+                        unsigned int tmp_ipl=0;
+                        for( unsigned int tipl = 0; tipl < tmp_traj.size(); tipl++ ) {
+                            if( tmp_traj.at(tipl)._gbl_type==GBL_Type::measurement){
+                                streamlog_out(DEBUG4) << " plane " << tmp_ipl << ", lab " << tipl;
+                                streamlog_out(DEBUG4) << " z " << tmp_traj.at(tipl)._zpos;
+                                streamlog_out(DEBUG4) << "  dx " << rx[tmp_ipl];
+                                streamlog_out(DEBUG4) << "  dy " << ry[tmp_ipl];
+                                streamlog_out(DEBUG4) << "  chi2 " << Chi2;
+                                streamlog_out(DEBUG4) << "  ndf " << Ndf;
+                                streamlog_out(DEBUG4) << "\n";
+                                tmp_ipl++;
+                            }
                         }
 
                         streamlog_out(DEBUG2)  << " Is traj valid? " << traj.isValid() << std::endl;
-                        if(_printEventCounter<2) {
-                            traj.printPoints();
-                            traj.printTrajectory();
-                            traj.printData();
-                        }
+//                         if(_printEventCounter<2) {
+//                             traj.printPoints();
+//                             traj.printTrajectory();
+//                             traj.printData();
+//                         }
                         _printEventCounter++;
                     }
 
@@ -1610,8 +1393,9 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
                     gblprbHist->fill( probchi );
 
                     // bad fits:
-// 	  if( probchi < 0.01 ) {
-                    if( Chi2< _chi2Cut) {
+//                     static constexpr double mille_probchi_cut = 0.01;
+//                     if( probchi < mille_probchi_cut ) {
+                    if( Chi2>_chi2Cut) {
 
                         badxHist->fill( xA ); // triplet at DUT
                         badyHist->fill( yA );
@@ -1632,12 +1416,10 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
                         baddy5Hist->fill( ry[5]*1E3 );
 
                     }// bad fit
-
                     else {
 
                         goodx1Hist->fill( rx[1]*1E3 ); // triplet interpol
                         goody1Hist->fill( ry[1]*1E3 );
-
                     } // OK fit
 
                     // look at fit:
@@ -1733,9 +1515,8 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
                     gblkx5Hist->fill( (ax[5] - ax[4])*1E3 ); // kink at 5 [mrad]
 
                     // do not pass very bad tracks to mille
-// 	  if(probchi > 0.001) {
-                    if(Chi2< _chi2Cut)
-                    {
+//                     if(probchi > mille_probchi_cut) {
+                    if(Chi2< _chi2Cut){
                         traj.milleOut( *milleGBL );
                         nm++;
                     }
@@ -2788,7 +2569,7 @@ void EUTelMilleGBL::GBL_Trajectory_Template::fill_geometry(const gear::SiPlanesL
         }
         NewLayer._zpos=_id_zpos_vec.at(i).second;
         _GBL_Template_Vec.emplace_back(NewLayer);
-//         Add air gap; Two scatterers of air at z-pos (1-1/sqrt(12))*d fill the air gap between all the layers
+//         Add air gap; Two scatterers of air at z-pos (1+-1/sqrt(12))*d fill the air gap between all the layers
         if(i<_id_zpos_vec.size()-1) {
             auto AirLayer=GBL_Point_Template();
             AirLayer._gbl_type=GBL_Type::air;
@@ -2819,6 +2600,8 @@ void EUTelMilleGBL::GBL_Trajectory_Template::fill_geometry(const gear::SiPlanesL
 //  Telescope triplet plane distances
     std::adjacent_difference (distplanevec.begin(), distplanevec.end(),distplanevec.begin());
 //     Assume a standard telescope configuration with 2 triplets of telescope planes for the resolution estimate
+//     Distance between the upstream and downstream triplet
+    _dist_triplet_driplet=distplanevec.at(3);
     if(distplanevec.size()>5) {
         distplanevec.erase (distplanevec.begin());
         distplanevec.erase (distplanevec.begin()+2);
@@ -2923,11 +2706,11 @@ void EUTelMilleGBL::GBL_Trajectory_Template::fill_x0(const gear::SiPlanesLayerLa
 //         auto rot_vec= Eigen::Vector3d(alpha_rad,beta_rad, gamma_rad);
         //         Calculate the angle between scatterer and beam axis
         double radlength_layervol=0;
-        if(siplaneslayerlayout.getLayerRadLength(i)>0)
+        if(layer_thickness>0 && siplaneslayerlayout.getLayerRadLength(i)>0)
             radlength_layervol =  layer_thickness/siplaneslayerlayout.getLayerRadLength(i);
         else
             streamlog_out( ERROR ) << "Radiation length for tracker plane with ID " << siplaneslayerlayout.getID(i)<<" "<< siplaneslayerlayout.getLayerRadLength(i) <<" Ill defined\n";
-        if(siplaneslayerlayout.getSensitiveRadLength(i)>0)
+        if(sensitive_layer_thickness>0 && siplaneslayerlayout.getSensitiveRadLength(i)>0)
             radlength_layervol +=sensitive_layer_thickness/siplaneslayerlayout.getSensitiveRadLength(i);
         else
             streamlog_out( ERROR ) << "Radiation length for sensitive volume in plane with ID " << siplaneslayerlayout.getID(i)<<" "<<siplaneslayerlayout.getLayerRadLength(i) <<" Ill defined\n";
@@ -2953,25 +2736,25 @@ void EUTelMilleGBL::GBL_Trajectory_Template::fill_x0(const gear::SiPlanesLayerLa
         _GBL_Template_Vec.at(i)._InverseScatAngleSqrt = TMath::Power(scattering_fraction_var(_GBL_Template_Vec.at(i)._radlen),-2);
 //         Calculate the steps used to fill the jacobian
         if(i<_GBL_Template_Vec.size()-1)
-            _GBL_Template_Vec.at(i)._step = _GBL_Template_Vec.at(i+1)._zpos -_GBL_Template_Vec.at(i)._zpos;
+            _GBL_Template_Vec.at(i+1)._step = _GBL_Template_Vec.at(i+1)._zpos -_GBL_Template_Vec.at(i)._zpos;
     }
 }
 inline double EUTelMilleGBL::GBL_Trajectory_Template::scattering_fraction_var(double eps_scat) {
     return _kappa*0.0136 * sqrt(eps_scat) / _p * ( 1 + 0.038*std::log(_sumeps));
 }
 void EUTelMilleGBL::GBL_Trajectory_Template::print_template_traj() {
-    streamlog_out( MESSAGE4) << "Material budged with air gaps from Gear:\n";
-    streamlog_out( MESSAGE4) 
+    streamlog_out( MESSAGE0) << "Material budged with air gaps from Gear:\n";
+    streamlog_out( MESSAGE0) 
     <<setw(15)<<"Type"
     <<setw(15)<<"Active"
     <<setw(25)<<"z pos(mm)"
     <<setw(25)<<"Fractional Rad. len %"
     <<setw(25)<<"Rad. len (X/X0)"
-    <<setw(25)<<"Theta_0i"
+    <<setw(25)<<"(1/theta_0,i)^2"
     <<setw(25)<<"Step"<<"\n";
     double crosscheck=0;
     for(unsigned int i=0; i<_GBL_Template_Vec.size(); i++) {
-        streamlog_out(MESSAGE4)
+        streamlog_out(MESSAGE0)
         <<setw(15)<<_GBL_Template_Vec.at(i)._gbl_type
         <<setw(15)<<_GBL_Template_Vec.at(i)._gbl_active
         <<setw(25)<<std::setprecision(4)<<_GBL_Template_Vec.at(i)._zpos
@@ -2984,7 +2767,7 @@ void EUTelMilleGBL::GBL_Trajectory_Template::print_template_traj() {
         <<"\n";
         crosscheck+=_GBL_Template_Vec.at(i)._radlen;
     }
-    streamlog_out(MESSAGE4)<<"Total material budget length telescope "
+    streamlog_out(MESSAGE0)<<"Total material budget telescope "
     <<std::scientific<<setw(25)<<crosscheck
     <<setw(25)<<_sumeps
     <<std::fixed<<"\n";    
