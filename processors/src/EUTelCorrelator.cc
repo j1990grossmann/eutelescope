@@ -122,28 +122,28 @@ EUTelCorrelator::EUTelCorrelator()
                        "for a correlation band. Note: these numbers are "
                        "ordered according to the z position of the sensors and "
                        "NOT according to the sensor id.",
-      _residualsXMin, std::vector<float>(6, -10.));
+      _residualsXMin, std::vector<float>(7, -10.));
 
   registerOptionalParameter(
       "ResidualsYMin", "Minimal values of the hit residuals in the Y direction "
                        "for a correlation band. Note: these numbers are "
                        "ordered according to the z position of the sensors and "
                        "NOT according to the sensor id.",
-      _residualsYMin, std::vector<float>(6, -10.));
+      _residualsYMin, std::vector<float>(7, -10.));
 
   registerOptionalParameter(
       "ResidualsXMax", "Maximal values of the hit residuals in the X direction "
                        "for a correlation band. Note: these numbers are "
                        "ordered according to the z position of the sensors and "
                        "NOT according to the sensor id.",
-      _residualsXMax, std::vector<float>(6, 10.));
+      _residualsXMax, std::vector<float>(7, 10.));
 
   registerOptionalParameter(
       "ResidualsYMax", "Maximal values of the hit residuals in the Y direction "
                        "for a correlation band. Note: these numbers are "
                        "ordered according to the z position of the sensors and "
                        "NOT according to the sensor id.",
-      _residualsYMax, std::vector<float>(6, 10.));
+      _residualsYMax, std::vector<float>(7, 10.));
 
   registerOptionalParameter("MinNumberOfCorrelatedHits",
                             "If there are more then this number of correlated "
@@ -164,6 +164,7 @@ void EUTelCorrelator::init() {
   // this method is called only once even when the rewind is active
   // usually a good idea to
   printParameters();
+  streamlog_out(DEBUG3)<<"Init correlator\n";
 
   geo::gGeometry().initializeTGeoDescription(EUTELESCOPE::GEOFILENAME,
                                              EUTELESCOPE::DUMPGEOROOT);
@@ -276,13 +277,13 @@ void EUTelCorrelator::processEvent(LCEvent *event) {
       event->getCollection(_inputClusterCollectionName);
 
       _hasClusterCollection = true;
-      streamlog_out(DEBUG5) << "found " << i << " name "
+      streamlog_out(DEBUG5) << "found ClusterCollection " << i << " name "
                             << _inputClusterCollectionName.c_str() << endl;
 
     } catch (lcio::Exception &e) {
 
       _hasClusterCollection = false;
-      streamlog_out(WARNING) << "NOT found " << i << " name "
+      streamlog_out(WARNING) << "NOT found ClusterCollection " << i << " name "
                              << _inputClusterCollectionName.c_str() << endl;
 
       break;
@@ -296,14 +297,14 @@ void EUTelCorrelator::processEvent(LCEvent *event) {
 
     _hasHitCollection = true;
     streamlog_out(DEBUG5) << "found "
-                          << " name " << _inputHitCollectionName.c_str()
+                          << " name HitCollection " << _inputHitCollectionName.c_str()
                           << endl;
 
   } catch (lcio::Exception &e) {
 
     _hasHitCollection = false;
     streamlog_out(DEBUG5) << "NOT found "
-                          << " name " << _inputHitCollectionName.c_str()
+                          << " name HitCollection " << _inputHitCollectionName.c_str()
                           << endl;
   }
 
@@ -323,7 +324,8 @@ void EUTelCorrelator::processEvent(LCEvent *event) {
   }
 
   //  try {
-
+// ignore cluster
+  _hasClusterCollection = false;
   if (_hasClusterCollection && !_hasHitCollection) {
 
     for (size_t eCol = 0; eCol < _clusterCollectionVec.size(); eCol++) {
@@ -505,6 +507,8 @@ void EUTelCorrelator::processEvent(LCEvent *event) {
                             << _inputHitCollectionName.c_str() << endl;
 
     for (size_t iExt = 0; iExt < inputHitCollection->size(); ++iExt) {
+    streamlog_out(MESSAGE2) << "inputHitCollection size"
+                            << inputHitCollection->size() <<"\n";
       std::vector<double> trackX;
       std::vector<double> trackY;
       std::vector<int> iplane;
@@ -529,10 +533,9 @@ void EUTelCorrelator::processEvent(LCEvent *event) {
                                     externalPosition[2]};
 
       if (hitDecoder(externalHit)["properties"] != kHitInGlobalCoord) {
-        geo::gGeometry().local2Master(externalSensorID, etrackPointLocal,
-                                      etrackPointGlobal);
-      } else {
-        // do nothing, already in global telescope frame
+          streamlog_out(MESSAGE2) << "kHitInGlobalCoord for externalSensorID " << externalSensorID<<"\n";
+          geo::gGeometry().local2Master(externalSensorID, etrackPointLocal,etrackPointGlobal);
+      }else{        // do nothing, already in global telescope frame
       }
 
       trackX.push_back(etrackPointGlobal[0]);
@@ -542,9 +545,9 @@ void EUTelCorrelator::processEvent(LCEvent *event) {
 
       streamlog_out(MESSAGE2)
           << "eplane:" << externalSensorID << " loc: " << etrackPointLocal[0]
-          << " " << etrackPointLocal[1] << " "
+          << " " << etrackPointLocal[1] << " "<<etrackPointLocal[2]
           << " glo: " << etrackPointGlobal[0] << " " << etrackPointGlobal[1]
-          << " " << endl;
+          << " " <<  etrackPointGlobal[2]<<"\n";
 
       for (size_t iInt = 0; iInt < inputHitCollection->size(); ++iInt) {
 
@@ -590,9 +593,9 @@ void EUTelCorrelator::processEvent(LCEvent *event) {
 
             streamlog_out(MESSAGE2) << "iplane:" << internalSensorID
                                     << " loc: " << itrackPointLocal[0] << " "
-                                    << itrackPointLocal[1] << " "
+                                    << itrackPointLocal[1] << " " << itrackPointLocal[2]
                                     << " glo: " << itrackPointGlobal[0] << " "
-                                    << itrackPointGlobal[1] << " " << endl;
+                                    << itrackPointGlobal[1] << " " << itrackPointGlobal[2]<< "\n";
           }
         }
       }
@@ -602,6 +605,7 @@ void EUTelCorrelator::processEvent(LCEvent *event) {
 
       p_end = unique(iplane_unique.begin(),
                      iplane_unique.end()); // remove duplicates
+      streamlog_out(MESSAGE2)<< "NumberOfCorrelatedHits" << iplane_unique.size()<< "\n";
 
       if (static_cast<int>(iplane_unique.size()) > _minNumberOfCorrelatedHits &&
           trackX.size() == trackY.size()) {
@@ -934,8 +938,19 @@ void EUTelCorrelator::bookHistos() {
           // to take into account possible misalignment.
 
           if (_hasHitCollection) {
+              double sensor_center_x_col=geo::gGeometry().siPlaneXPosition(row);
+              double sensor_center_y_col=geo::gGeometry().siPlaneYPosition(row);
+              
+              double sensor_center_x_row=geo::gGeometry().siPlaneXPosition(col);
+              double sensor_center_y_row=geo::gGeometry().siPlaneYPosition(col);
 
-            double safetyFactor = 1.0; // 2 should be enough because it
+//               double sensor_center_x_col=0.;
+//               double sensor_center_y_col=0.;              
+//               double sensor_center_x_row=0.;
+//               double sensor_center_y_row=0.;
+
+
+            double safetyFactor = 1.5; // 2 should be enough because it
             // means that the sensor is wrong
             // by all its size.
 
@@ -948,25 +963,38 @@ void EUTelCorrelator::bookHistos() {
             histoInfo = histoMgr->getHistogramInfo(_hitXCorrelationHistoName);
             colNBin =
                 (isHistoManagerAvailable && histoInfo) ? histoInfo->_xBin : 100;
+                //                 Mapsahack
+            if(col==101)
+                 colNBin = 100;
             colMin = (isHistoManagerAvailable && histoInfo)
                          ? histoInfo->_xMin
-                         : -0.5 * geo::gGeometry().siPlaneXSize(row);
+                         : (-0.5 * geo::gGeometry().siPlaneXSize(row)+sensor_center_x_row);
             colMax = (isHistoManagerAvailable && histoInfo)
                          ? histoInfo->_xMax
-                         : 0.5 * geo::gGeometry().siPlaneXSize(row);
+                         : (0.5 * geo::gGeometry().siPlaneXSize(row)+sensor_center_x_row);
             rowNBin =
                 (isHistoManagerAvailable && histoInfo) ? histoInfo->_yBin : 100;
             rowMin = (isHistoManagerAvailable && histoInfo)
                          ? histoInfo->_yMin
-                         : -0.5 * geo::gGeometry().siPlaneXSize(col);
+                         : (-0.5 * geo::gGeometry().siPlaneXSize(row));
             rowMax = (isHistoManagerAvailable && histoInfo)
                          ? histoInfo->_yMax
-                         : 0.5 * geo::gGeometry().siPlaneXSize(col);
+                         : (0.5 * geo::gGeometry().siPlaneXSize(row));
 
             AIDA::IHistogram2D *histo2D =
                 AIDAProcessor::histogramFactory(this)->createHistogram2D(
                     tempHistoName.c_str(), rowNBin, rowMin, rowMax, colNBin,
                     colMin, colMax);
+                streamlog_out(MESSAGE4)<<"Booking histogram for corr pair "<<row<<"/"<<col<<"\n"
+                <<std::setw(6)<<std::setprecision(2)<<rowMin
+                <<std::setw(6)<<std::setprecision(2)<<rowMax
+                <<std::setw(6)<<std::setprecision(2)<<colMin
+                <<std::setw(6)<<std::setprecision(2)<<colMax<<"\n"
+                <<std::setw(6)<<std::setprecision(2)<<sensor_center_x_row
+                <<std::setw(6)<<std::setprecision(2)<<sensor_center_x_col<<"\n";
+                
+                
+                
 
             histo2D->setTitle(tempHistoTitle.c_str());
 
@@ -990,24 +1018,35 @@ void EUTelCorrelator::bookHistos() {
             histoInfo = histoMgr->getHistogramInfo(_hitYCorrelationHistoName);
             colNBin =
                 (isHistoManagerAvailable && histoInfo) ? histoInfo->_xBin : 100;
+//                 Mapsahack
+            if(col==101)
+                 colNBin = 12;
             colMin = (isHistoManagerAvailable && histoInfo)
                          ? histoInfo->_xMin
-                         : -0.5 * geo::gGeometry().siPlaneYSize(row);
+                         : (-0.5 * geo::gGeometry().siPlaneYSize(row)+sensor_center_y_row);
             colMax = (isHistoManagerAvailable && histoInfo)
                          ? histoInfo->_xMax
-                         : 0.5 * geo::gGeometry().siPlaneYSize(row);
+                         : (0.5 * geo::gGeometry().siPlaneYSize(row)+sensor_center_y_row);
             rowNBin =
                 (isHistoManagerAvailable && histoInfo) ? histoInfo->_yBin : 100;
             rowMin = (isHistoManagerAvailable && histoInfo)
                          ? histoInfo->_yMin
-                         : -0.5 * geo::gGeometry().siPlaneYSize(col);
+                         : (-0.5 * geo::gGeometry().siPlaneYSize(col));
             rowMax = (isHistoManagerAvailable && histoInfo)
                          ? histoInfo->_yMax
-                         : 0.5 * geo::gGeometry().siPlaneYSize(col);
+                         : (0.5 * geo::gGeometry().siPlaneYSize(col));
 
             histo2D = AIDAProcessor::histogramFactory(this)->createHistogram2D(
                 tempHistoName.c_str(), rowNBin, rowMin, rowMax, colNBin, colMin,
                 colMax);
+            streamlog_out(MESSAGE4)<<"Booking histogram for corr pair "<<row<<"/"<<col<<"\n"
+            <<std::setw(6)<<std::setprecision(2)<<rowMin
+            <<std::setw(6)<<std::setprecision(2)<<rowMax
+            <<std::setw(6)<<std::setprecision(2)<<colMin
+            <<std::setw(6)<<std::setprecision(2)<<colMax<<"\n"
+            <<std::setw(6)<<std::setprecision(2)<<sensor_center_y_row
+            <<std::setw(6)<<std::setprecision(2)<<sensor_center_y_col<<"\n";
+
 
             histo2D->setTitle(tempHistoTitle.c_str());
 
@@ -1026,18 +1065,18 @@ void EUTelCorrelator::bookHistos() {
                 (isHistoManagerAvailable && histoInfo) ? histoInfo->_xBin : 100;
             colMin = (isHistoManagerAvailable && histoInfo)
                          ? histoInfo->_xMin
-                         : -0.5 * geo::gGeometry().siPlaneXSize(row);
+                         : (-0.5 * geo::gGeometry().siPlaneXSize(row)+sensor_center_x_col);
             colMax = (isHistoManagerAvailable && histoInfo)
                          ? histoInfo->_xMax
-                         : 0.5 * geo::gGeometry().siPlaneXSize(row);
+                         : (0.5 * geo::gGeometry().siPlaneXSize(row)+sensor_center_x_col);
             rowNBin =
                 (isHistoManagerAvailable && histoInfo) ? histoInfo->_yBin : 100;
             rowMin = (isHistoManagerAvailable && histoInfo)
                          ? histoInfo->_yMin
-                         : -0.5 * geo::gGeometry().siPlaneXSize(col);
+                         : (-0.5 * geo::gGeometry().siPlaneXSize(col)+sensor_center_x_row);
             rowMax = (isHistoManagerAvailable && histoInfo)
                          ? histoInfo->_yMax
-                         : 0.5 * geo::gGeometry().siPlaneXSize(col);
+                         : (0.5 * geo::gGeometry().siPlaneXSize(col)+sensor_center_x_row);
 
             histo2D = AIDAProcessor::histogramFactory(this)->createHistogram2D(
                 tempHistoName.c_str(), rowNBin, rowMin, rowMax, colNBin, colMin,
@@ -1059,18 +1098,18 @@ void EUTelCorrelator::bookHistos() {
                 (isHistoManagerAvailable && histoInfo) ? histoInfo->_xBin : 100;
             colMin = (isHistoManagerAvailable && histoInfo)
                          ? histoInfo->_xMin
-                         : -0.5 * geo::gGeometry().siPlaneYSize(row);
+                         : (-0.5 * geo::gGeometry().siPlaneYSize(row)+sensor_center_y_col);
             colMax = (isHistoManagerAvailable && histoInfo)
                          ? histoInfo->_xMax
-                         : 0.5 * geo::gGeometry().siPlaneYSize(row);
+                         : (0.5 * geo::gGeometry().siPlaneYSize(row)+sensor_center_y_col);
             rowNBin =
                 (isHistoManagerAvailable && histoInfo) ? histoInfo->_yBin : 100;
             rowMin = (isHistoManagerAvailable && histoInfo)
                          ? histoInfo->_yMin
-                         : -0.5 * geo::gGeometry().siPlaneYSize(col);
+                         : (-0.5 * geo::gGeometry().siPlaneYSize(col)+sensor_center_y_row);
             rowMax = (isHistoManagerAvailable && histoInfo)
                          ? histoInfo->_yMax
-                         : 0.5 * geo::gGeometry().siPlaneYSize(col);
+                         : (0.5 * geo::gGeometry().siPlaneYSize(col)+sensor_center_y_row);
 
             histo2D = AIDAProcessor::histogramFactory(this)->createHistogram2D(
                 tempHistoName.c_str(), rowNBin, rowMin, rowMax, colNBin, colMin,
