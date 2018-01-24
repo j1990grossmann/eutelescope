@@ -140,6 +140,8 @@ AIDA::IHistogram1D * sixdxHist;
 AIDA::IHistogram1D * sixdyHist;
 AIDA::IHistogram1D * sixkxHist;
 AIDA::IHistogram1D * sixkyHist;
+AIDA::IHistogram2D * sixkyxHist2d;
+AIDA::IHistogram2D * sixkyxHist2d_sel;
 
 AIDA::IHistogram1D * selxHist;
 AIDA::IHistogram1D * selyHist;
@@ -229,6 +231,14 @@ AIDA::IHistogram1D * gbldy6Hist;
 AIDA::IHistogram1D * gblrx6Hist;
 AIDA::IHistogram1D * gblry6Hist;
 
+AIDA::IHistogram1D * gblax7Hist;
+AIDA::IHistogram1D * gbldx7Hist;
+AIDA::IHistogram1D * gblay7Hist;
+AIDA::IHistogram1D * gbldy7Hist;
+AIDA::IHistogram1D * gblrx7Hist;
+AIDA::IHistogram1D * gblry7Hist;
+
+
 AIDA::IHistogram1D * gblkx1Hist;
 AIDA::IHistogram1D * gblkx2Hist;
 AIDA::IHistogram1D * gblkx3Hist;
@@ -281,7 +291,7 @@ EUTelMilleGBL::EUTelMilleGBL(): Processor("EUTelMilleGBL") {
 
         PedeUserStartValuesGamma.push_back(0.0);
 
-        float zpos = 20000.0 +  20000.0 * (float)i; // [um]
+        float zpos = 20000.0 +  20000.0 * static_cast<float>(i); // [um]
         SensorZPositions.push_back(zpos);
 
         SensorXShifts.push_back(0.0);
@@ -363,6 +373,9 @@ EUTelMilleGBL::EUTelMilleGBL(): Processor("EUTelMilleGBL") {
     registerOptionalParameter( "sixCut", "Upstream-Downstream Track matching cut [um]", _sixCut, 0.60 );
     registerOptionalParameter( "slopeCut", "t(d)riplet slope cut [radian]", _slopeCut, 0.01 );
     registerOptionalParameter( "Chi2Cut", "Cut on chisquare for tracks passed to millepede", _chi2Cut, 1.);
+    registerOptionalParameter("streamlog_outDUTCutX","Select track candidates at DUT position in scatter free region only",_DUTCutX ,std::vector<float>());
+    registerOptionalParameter("DUTCutY","Select track candidates at DUT position in scatter free region only",_DUTCutY ,std::vector<float>());
+
 
     //registerOptionalParameter("ResidualsXMin","Minimal values of the hit residuals in the X direction for a track. Note: these numbers are ordered according to the z position of the sensors and NOT according to the sensor id.",_residualsXMin,MinimalResidualsX);
 
@@ -466,6 +479,15 @@ void EUTelMilleGBL::init() {
     _gbltemplate.print_template_traj();
 
     _histogramSwitch = true;
+//  Initialize the Rectangular DUT Region CUT
+    if(_DUTCutX.size()<2){
+       _DUTCutX={-100.,100.};
+       streamlog_out(MESSAGE0)<<"DUTCutX set to -100,100\n";
+    }
+    if(_DUTCutY.size()==0){
+        _DUTCutY={-100.,100.};
+        streamlog_out(MESSAGE0)<<"DUTCutY set to -100,100\n";
+    }
 
     // Take all layers defined in GEAR geometry
     _nTelPlanes = _siPlanesLayerLayout->getNLayers();
@@ -544,7 +566,7 @@ void EUTelMilleGBL::init() {
 
     cout << "planes sorted along z:" << endl;
     for( size_t i = 0; i < _siPlaneZPosition.size(); i++ ) {
-        cout << i << "  z " << _siPlaneZPosition[i] << endl;
+        streamlog_out(MESSAGE4) << i << "  z " << _siPlaneZPosition[i] << endl;
     }
     // the user is giving sensor ids for the planes to be excluded.
     // These sensor ids have to be converted to a local index
@@ -603,7 +625,8 @@ void EUTelMilleGBL::init() {
     }
 
     //consistency
-    if( (int)_siPlaneZPosition.size() != _nPlanes ) {
+    _nPlanes=_siPlaneZPosition.size();
+    if( static_cast<int>(_siPlaneZPosition.size()) != _nPlanes ) {
         streamlog_out( ERROR2 ) << "the number of detected planes is " << _nPlanes << " but only " << _siPlaneZPosition.size() << " layer z positions were found!"  << endl;
         exit(-1);
     }
@@ -647,7 +670,17 @@ void EUTelMilleGBL::init() {
     // booking histograms
     bookHistos();
 
-    streamlog_out( MESSAGE2 ) << "Initialising Mille..." << endl;
+    streamlog_out( MESSAGE0 ) << "Initialising Mille..." << endl;
+    boost::filesystem::path file (_binaryFilename.c_str());
+    boost::filesystem::path rootpath = file.parent_path();
+    try{
+        boost::filesystem::create_directories( rootpath);
+        streamlog_out(MESSAGE0)<<"Created the root path for mille bin in the filesystem\n";
+    }
+    catch (const boost::filesystem::filesystem_error& ex)
+    {
+        streamlog_out(ERROR) << ex.what() << '\n';
+    }
 
     unsigned int reserveSize = 8000;
     milleGBL = new gbl::MilleBinary( _binaryFilename, reserveSize );
@@ -738,7 +771,7 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
         streamlog_out( MESSAGE2 ) << "Processing event "
                                   << setw(9) << setiosflags(ios::right)
                                   << event->getEventNumber() << " in run "
-                                  << setw(9) << setiosflags(ios::right)
+                                  << setw(5) << setiosflags(ios::right)
                                   << event->getRunNumber()
                                   << ", currently having "
                                   << setw(9) << setiosflags(ios::right)
@@ -772,7 +805,7 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
     std::vector<std::vector<EUTelMilleGBL::HitsInPlane> > _hitsArray(_nPlanes - _nExcludePlanes, std::vector<EUTelMilleGBL::HitsInPlane>() );
     std::vector<int> indexconverter (_nPlanes,-1);
 
-    //  if( _nExcludePlanes > 0 )
+    if( _nExcludePlanes > 0 )
     {
         int icounter = 0;
         for( int i = 0; i < _nPlanes; i++ ) {
@@ -816,8 +849,12 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 
                 // loop over all hits in collection:
 
-                if(_printEventCounter < 100) streamlog_out(DEBUG2) << "Event " << event->getEventNumber() << " contains "
-                            << collection->getNumberOfElements() << " hits" << endl;
+                if(_printEventCounter < 10){
+                    streamlog_out(DEBUG2) << "Event " 
+                    << event->getEventNumber() 
+                    << " contains " << collection->getNumberOfElements() 
+                    << " hits" << endl;
+                }
                 nAllHitHisto->fill(collection->getNumberOfElements());
 
                 for( int iHit = 0; iHit < collection->getNumberOfElements(); iHit++ ) {
@@ -849,10 +886,10 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
                     hitsInPlane.measuredY = tmp_hit->getPosition()[1]; //
                     hitsInPlane.measuredZ = tmp_hit->getPosition()[2]; //
 
-// 	  if(_iEvt < 5) streamlog_out( MESSAGE0 ) << "hit x = " << tmp_hit->getPosition()[0] << endl;
-// 	  if(_iEvt < 5) streamlog_out( MESSAGE0 ) << "hit y = " << tmp_hit->getPosition()[1] << endl;
-// 	  if(_iEvt < 5) streamlog_out( MESSAGE0 ) << "hit z = " << tmp_hit->getPosition()[2] << endl;
-
+                    if(_iEvt < 5) streamlog_out( DEBUG0 ) << "hit x = " << tmp_hit->getPosition()[0] << endl;
+                    if(_iEvt < 5) streamlog_out( DEBUG0 ) << "hit y = " << tmp_hit->getPosition()[1] << endl;
+                    if(_iEvt < 5) streamlog_out( DEBUG0 ) << "hit z = " << tmp_hit->getPosition()[2] << endl;
+                    
 
                     //printf("hit %5d of %5d , at %-8.3f %-8.3f %-8.3f, %5d %5d \n", iHit , collection->getNumberOfElements(), hitsInPlane.measuredX*1E-3, hitsInPlane.measuredY*1E-3, hitsInPlane.measuredZ*1E-3, indexconverter[layerIndex], layerIndex );
 
@@ -905,11 +942,18 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 
         }//loop over hits
 
-
-//      streamlog_out( MESSAGE2 ) << "hits per plane: ";
-//      for( size_t i = 0; i < _hitsArray.size(); i++ )
-//      streamlog_out( MESSAGE2 ) << _hitsArray[i].size() << "  ";
-//      streamlog_out( MESSAGE2 ) << endl;
+     if(_printEventCounter<50){
+         streamlog_out( DEBUG4 ) << "hits per plane: ";
+         for( size_t i = 0; i < _hitsArray.size(); i++ )
+             streamlog_out( DEBUG4) << _hitsArray[i].size() << "  ";
+         streamlog_out( DEBUG4 ) << endl;
+         for( size_t i=0; i<_hitsArray.size(); i++){
+             for(size_t j=0; j<_hitsArray[i].size(); j++)
+                 streamlog_out(DEBUG4)<<_hitsArray[i][j].measuredZ<<" ";
+             streamlog_out(DEBUG4)<<std::endl;
+         }
+     }
+         
 
     // mode 1 or 3: tracks are read in
 
@@ -1078,7 +1122,7 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
         ntriHist->fill( ntri );
 
         if( ntri >= 99 ) {
-            streamlog_out( MESSAGE2 ) << "Maximum number of triplet track candidates reached in event "<<_iEvt<<". Maybe further tracks were skipped" << endl;
+            streamlog_out( MESSAGE0 ) << "Maximum number of triplet track candidates reached in event "<<_iEvt<<". Maybe further tracks were skipped" << endl;
         }
 
         // driplets 3-4-5:
@@ -1195,13 +1239,20 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 
                 if( abs(dy) < _sixCut ) sixdxHist->fill( dx*1e3 );
                 if( abs(dx) < _sixCut ) sixdyHist->fill( dy*1e3 );
+                
+//                 Calculate the Kinks for all Track candidates
+                
+                double kx = sxB[kB] - sxA[kA]; //kink
+                double ky = syB[kB] - syA[kA];
+                double k_sqrt  = std::pow((std::pow(2,kx)+std::pow(2,ky)),.5);
+                sixkyxHist2d->fill(xB,yB, k_sqrt);
 
-                if( abs(dx) < _sixCut  && abs(dy) < _sixCut ) { // triplet-driplet match
+                if( abs(dx) < _sixCut  && abs(dy) < _sixCut &&
+                    _DUTCutX.at(0)<xB && xB<_DUTCutX.at(1) &&
+                    _DUTCutY.at(0)<yB && yB<_DUTCutY.at(1) )  { // triplet-driplet match
                     _nSix++;
 
-                    double kx = sxB[kB] - sxA[kA]; //kink
-                    double ky = syB[kB] - syA[kA];
-
+                    sixkyxHist2d_sel->fill(xB,yB, k_sqrt);
                     sixkxHist->fill( kx*1E3 );
                     sixkyHist->fill( ky*1E3 );
 
@@ -1253,15 +1304,18 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
                         if(tmp_traj.at( gbl_counter )._gbl_type==GBL_Type::measurement){
                             if( ipl < 3 )
                                 jhit = hts[ipl][kA];
-                            else
+                            else if(3<=ipl && ipl<6)
                                 jhit = hts[ipl][kB];
+                            else 
+                                continue;
                             double zz = _hitsArray[ipl][jhit].measuredZ; // [mm]
                             // transport matrix in (q/p, x', y', x, y) space
                             // extrapolate triplet vector A to each plane:
                             double dz = zz - zmA[kA];
                             double xs = (xmA[kA] + sxA[kA] * dz); // Ax at plane
                             double ys = (ymA[kA] + syA[kA] * dz); // Ay at plane
-                            if(_printEventCounter < 10) std::cout << "dz = " << dz << "   xs = " << xs << "   ys = " << ys << std::endl;
+                            if(_printEventCounter < 50)
+                                streamlog_out(DEBUG4)<< "dz = " << dz << "   xs = " << xs << "   ys = " << ys << std::endl;
                             
                             rx[ipl] = (_hitsArray[ipl][jhit].measuredX - xs); // resid hit-triplet, in micrometer ...
                             ry[ipl] = (_hitsArray[ipl][jhit].measuredY - ys); // resid
@@ -1308,7 +1362,7 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
                                 ilab.emplace_back(gbl_counter+1);
                                 ipl++;
                             }else{
-                                streamlog_out(ERROR) << "To many measurement defined in gear file (Currently tracking allows 6\n";
+                                streamlog_out(ERROR) << "To many measurements defined in gear file. Currently tracking allows six only\n";
                             }
                         }
                         Eigen::Vector2d wscat(tmp_traj.at( gbl_counter )._InverseScatAngleSqrt,tmp_traj.at( gbl_counter )._InverseScatAngleSqrt );
@@ -1383,8 +1437,8 @@ void EUTelMilleGBL::processEvent( LCEvent * event ) {
 //                             traj.printTrajectory();
 //                             traj.printData();
 //                         }
-                        _printEventCounter++;
                     }
+                    _printEventCounter++;
 
                     gblndfHist->fill( Ndf );
                     gblchi2Hist->fill( Chi2 );
@@ -1560,8 +1614,17 @@ void EUTelMilleGBL::end() {
     // if write the pede steering file
     if( _generatePedeSteerfile ) {
 
-        streamlog_out( MESSAGE4 ) << endl << "Generating the steering file for the pede program..." << endl;
-
+        streamlog_out( MESSAGE2 ) << endl << "Generating the steering file for the pede program..." << endl;
+        boost::filesystem::path file (_pedeSteerfileName.c_str());
+        boost::filesystem::path rootpath = file.parent_path();
+        try{
+            boost::filesystem::create_directories( rootpath);
+            streamlog_out(MESSAGE0)<<"Boost created the root path for pede in the filesystem\n";
+        }
+        catch (const boost::filesystem::filesystem_error& ex)
+        {
+            streamlog_out(ERROR) << ex.what() << '\n';
+        }
         ofstream steerFile;
         steerFile.open(_pedeSteerfileName.c_str());
 
@@ -1590,7 +1653,7 @@ void EUTelMilleGBL::end() {
             } // end loop over all planes
 
             steerFile << "Cfiles" << endl;
-            steerFile << _binaryFilename << endl;
+            steerFile << boost::filesystem::canonical(boost::filesystem::path(_binaryFilename.c_str())).string() << endl;
             steerFile << endl;
 
             steerFile << "Parameter" << endl;
@@ -1798,8 +1861,20 @@ void EUTelMilleGBL::end() {
         // check if steering file exists
 
         if( _generatePedeSteerfile == 1 ) {
-
-            std::string command = "pede " + _pedeSteerfileName;
+//          For batch submission  one has to change the working directoy to where pede will run, because for pede no output path can be set
+            boost::filesystem::path file (_binaryFilename.c_str());
+            boost::filesystem::path steer_file (_pedeSteerfileName.c_str());
+            boost::filesystem::path full_file_pede_bin_file_path=boost::filesystem::canonical(boost::filesystem::absolute(file));
+            boost::filesystem::path full_file_pede_steer_file_path=boost::filesystem::canonical(boost::filesystem::absolute(steer_file));
+            boost::filesystem::path pede_working_dir = full_file_pede_steer_file_path.parent_path();
+            boost::filesystem::path full_current_path( boost::filesystem::current_path() );
+            
+            streamlog_out( MESSAGE0) <<"pede_working_dir"<<  pede_working_dir<< endl;
+            streamlog_out( MESSAGE0) <<"full_current_path"<<  full_current_path<< endl;
+            streamlog_out( MESSAGE0) <<"full_pedesteerfile_path"<<  full_file_pede_steer_file_path<< endl;
+            
+            std::string command = "cd "+pede_working_dir.string()+"; pede " + full_file_pede_steer_file_path.string()+" ; cd "+full_current_path.string();
+            command +="; rm "+full_file_pede_bin_file_path.string();
 
             // before starting pede, let's check if it is in the path
             bool isPedeInPath = true;
@@ -1839,13 +1914,14 @@ void EUTelMilleGBL::end() {
 
                 // reading back the millepede.res file:
 
-                string millepedeResFileName = "millepede.res";
+                string millepedeResFileName = pede_working_dir.string()+"/millepede.res";
 
                 streamlog_out( MESSAGE2 ) << "Reading back the " << millepedeResFileName << endl
                                           << "Saving the alignment constant into " << _alignmentConstantLCIOFile << endl;
-                std::string gearfile="gearfile_new.xml";
-                streamlog_out( MESSAGE2 ) << "Drop gear file to "<<gearfile<<"\n";
-                gear::GearXML::createXMLFile (Global::GEAR, gearfile);
+                
+                std::string gearfile1="gearfile_new_new.xml";
+                streamlog_out( MESSAGE2 ) << "Drop gear file to "<<gearfile1<<"\n";
+                gear::GearXML::createXMLFile (Global::GEAR, gearfile1);
 
                 // open the millepede ASCII output file
                 ifstream millepede( millepedeResFileName.c_str() );
@@ -1985,20 +2061,19 @@ void EUTelMilleGBL::end() {
                 lcWriter->close();
 
                 millepede.close();
-
+                boost::filesystem::path file (_pedeSteerfileName.c_str());
+                boost::filesystem::path rootpath = file.parent_path();
+//                 std::string gearfile="gearfile_new_aligned.xml";
+//                 streamlog_out( MESSAGE2 ) << "Drop updated gear file to "<<gearfile<<"\n";
+//                 gear::GearXML::createXMLFile (Global::GEAR, gearfile);
             }//PedeInPath
-
         }// Pede steering exist
-
         else {
             streamlog_out( ERROR2 ) << "Unable to run pede. No steering file has been generated." << endl;
         }
-
     } // Pede wanted
-
     streamlog_out( MESSAGE2 ) << endl;
     streamlog_out( MESSAGE2 ) << "Successfully finished" << endl;
-
 }//end
 
 //------------------------------------------------------------------------------
@@ -2110,6 +2185,14 @@ void EUTelMilleGBL::bookHistos() {
         sixkyHist = AIDAProcessor::histogramFactory(this)->
                     createHistogram1D( "sixky", 100, -25, 25 );
         sixkyHist->setTitle( "sixky;y kink angle [mrad];triplet pairs" );
+
+        sixkyxHist2d = AIDAProcessor::histogramFactory(this)->
+                    createHistogram2D( "sixk", 200, -10, 10, 100, -5.3, 5.3);
+        sixkyxHist2d->setTitle( "kinkxy angle [mrad]; x [mm]; y[mm]");
+
+        sixkyxHist2d_sel = AIDAProcessor::histogramFactory(this)->
+                    createHistogram2D( "sixk_sel", 200, -10, 10, 100, -5.3, 5.3);
+        sixkyxHist2d_sel->setTitle( "kinkxy angle [mrad] selected tracks; x [mm]; y[mm]");
 
         // GBL:
 

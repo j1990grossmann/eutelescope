@@ -36,7 +36,14 @@
 // AIDA includes <.h>
 #if defined(USE_AIDA) || defined(MARLIN_USE_AIDA)
 #include <AIDA/IBaseHistogram.h>
+#include <AIDA/IHistogram2D.h>
 #endif
+
+// boost include
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/convenience.hpp>
+#include <boost/timer/timer.hpp>
+
 
 // system includes <>
 #include <string>
@@ -475,6 +482,9 @@ protected:
     std::vector<float > _pedeUserStartValuesAlpha;
     std::vector<float > _pedeUserStartValuesBeta;
     std::vector<float > _pedeUserStartValuesGamma;
+
+    std::vector<float > _DUTCutX;
+    std::vector<float > _DUTCutY;
 
     int _inputMode;
     float _testModeSensorResolution;
